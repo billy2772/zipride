@@ -7,13 +7,17 @@ const connectionConfig = {
   host: process.env.MYSQL_HOST || '127.0.0.1',
   port: parseInt(process.env.MYSQL_PORT) || 3307,
   user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || 'Abirami@27',
+  password: process.env.MYSQL_PASSWORD || '',
   database: process.env.MYSQL_DATABASE || 'zipride',
+
+  ssl: {
+    rejectUnauthorized: true
+  },
+
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
 };
-
 let pool;
 let isFallback = false;
 
