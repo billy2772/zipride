@@ -4,11 +4,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const connectionConfig = {
-  host: process.env.MYSQL_HOST || '127.0.0.1',
-  port: parseInt(process.env.MYSQL_PORT) || 3307,
-  user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || '',
-  database: process.env.MYSQL_DATABASE || 'zipride',
+  host: process.env.MYSQL_HOST,
+  port: Number(process.env.MYSQL_PORT),
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE,
 
   ssl: {
     rejectUnauthorized: true
@@ -18,78 +18,96 @@ const connectionConfig = {
   connectionLimit: 10,
   queueLimit: 0
 };
+
 let pool;
 let isFallback = false;
 
-// Mock database connection on memory (for route execution fallback if MySQL credential fails in test sandbox)
+
+// Mock database fallback
 const mockDbPool = {
   isMock: true,
+
   async execute(sql, params = []) {
-    console.warn(`[MySQL Mock Execute] SQL: ${sql} | Params:`, params);
-    // Return empty mock results to keep queries from throwing errors
+    console.warn(`[Mock Execute] SQL: ${sql}`, params);
     return [[], []];
   },
+
   async query(sql, params = []) {
-    console.warn(`[MySQL Mock Query] SQL: ${sql} | Params:`, params);
+    console.warn(`[Mock Query] SQL: ${sql}`, params);
     return [[], []];
   },
+
   async getConnection() {
     return {
       execute: async (sql, params = []) => {
-        console.warn(`[MySQL Mock Conn Execute] SQL: ${sql} | Params:`, params);
+        console.warn(`[Mock Conn Execute] SQL: ${sql}`, params);
         return [[], []];
       },
+
       query: async (sql, params = []) => {
-        console.warn(`[MySQL Mock Conn Query] SQL: ${sql} | Params:`, params);
+        console.warn(`[Mock Conn Query] SQL: ${sql}`, params);
         return [[], []];
       },
-      beginTransaction: async () => console.log('[MySQL Mock Transaction] Begin'),
-      commit: async () => console.log('[MySQL Mock Transaction] Commit'),
-      rollback: async () => console.log('[MySQL Mock Transaction] Rollback'),
-      release: () => { }
+
+      beginTransaction: async () => {
+        console.log('[Mock Transaction] Begin');
+      },
+
+      commit: async () => {
+        console.log('[Mock Transaction] Commit');
+      },
+
+      rollback: async () => {
+        console.log('[Mock Transaction] Rollback');
+      },
+
+      release: () => {}
     };
   }
 };
 
+
 try {
-  console.log(`[db.js] Initializing MySQL connection pool on ${connectionConfig.host}:${connectionConfig.port}...`);
+
+  console.log(
+    `[db.js] Connecting to MySQL: ${connectionConfig.host}:${connectionConfig.port}`
+  );
+
+
   pool = mysql.createPool(connectionConfig);
 
-  // Test connection immediately
+
   const conn = await pool.getConnection();
-  console.log('[db.js] MySQL Connection Pool successfully established.');
+
+  console.log(
+    '[db.js] Aiven MySQL Connection Successful'
+  );
+
+
   conn.release();
+
+
 } catch (err) {
-  console.error('[db.js] Connection pool initialization failed:', err.message);
 
-  // Try fallback options
-  const fallbackPasswords = ['', 'root', 'password'];
-  let success = false;
+  console.error(
+    '[db.js] MySQL Connection Failed:',
+    err.message
+  );
 
-  for (const pass of fallbackPasswords) {
-    try {
-      console.log(`[db.js] Attempting connection pool fallback with password: "${pass}"...`);
-      pool = mysql.createPool({
-        ...connectionConfig,
-        password: pass
-      });
-      const conn = await pool.getConnection();
-      console.log(`[db.js] Fallback SUCCESS! Connected with password: "${pass}"`);
-      conn.release();
-      success = true;
-      break;
-    } catch (fErr) {
-      // Continue
-    }
-  }
 
-  if (!success) {
-    console.error('[db.js] All MySQL connection attempts failed. Activating local mock DB driver fallback to prevent crash.');
-    pool = mockDbPool;
-    isFallback = true;
-  }
+  console.error(
+    'Using Mock Database'
+  );
+
+
+  pool = mockDbPool;
+  isFallback = true;
+
 }
 
+
 export const getDb = () => pool;
+
 export const isMockActive = () => isFallback;
+
 export default pool;
