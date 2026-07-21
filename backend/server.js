@@ -1,0 +1,223 @@
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// Environment validation — must run before anything else
+import { validateEnv } from './utils/envValidator.js';
+dotenv.config();
+validateEnv();
+
+// Global BigInt serialization helper to prevent JSON.stringify crashes on BIGINT columns
+BigInt.prototype.toJSON = function() {
+  return this.toString();
+};
+
+// Config imports
+import { getDb, isMockActive } from './config/db.js';
+import { connectMongoDB, getMongoDB } from './config/mongodb.js';
+import { ensureMongoIndexes } from './repositories/mongoRepository.js';
+import { initializeSocket, getOnlineDriverCount } from './socket/socket.js';
+import { CronService } from './services/cronService.js';
+
+// Route imports
+import authRoutes from './routes/authRoutes.js';
+import riderRoutes from './routes/riderRoutes.js';
+import driverRoutes from './routes/driverRoutes.js';
+import rideRoutes from './routes/rideRoutes.js';
+import documentRoutes from './routes/documentRoutes.js';
+import walletRoutes from './routes/walletRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+
+// Controller imports for dynamic compatibility query
+import { AdminController } from './controllers/adminController.js';
+
+// Middleware imports
+import { errorHandler } from './middleware/errorHandler.js';
+import { loginLimiter, otpLimiter, rideLimiter, paymentLimiter, adminLimiter, generalLimiter } from './middleware/rateLimiter.js';
+import requestTimeout from './middleware/requestTimeout.js';
+import upload from './middleware/upload.js';
+// dotenv already loaded above with env validation
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const server = http.createServer(app);
+
+// 1. Logs directory initialization
+const logsDir = path.resolve(__dirname, './logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
+
+// 2. Upload directories initialization (Drivers, Vehicles, Profiles, etc.)
+const uploadSubDirs = ['drivers', 'vehicles', 'profiles', 'licenses', 'insurance', 'rc', 'selfie', 'trips'];
+const uploadsBaseDir = path.resolve(__dirname, './uploads');
+if (!fs.existsSync(uploadsBaseDir)) {
+  fs.mkdirSync(uploadsBaseDir, { recursive: true });
+}
+uploadSubDirs.forEach((dir) => {
+  const subDir = path.join(uploadsBaseDir, dir);
+  if (!fs.existsSync(subDir)) {
+    fs.mkdirSync(subDir, { recursive: true });
+  }
+});
+
+// 3. Security Middlewares
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: process.env.NODE_ENV === 'production',
+  hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false,
+}));
+app.use(cors({
+  origin: (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',').map(o => o.trim()),
+  exposedHeaders: ['X-JWT-Token'],
+  credentials: true,
+}));
+
+// Request timeout (prevents resource exhaustion from slow clients)
+app.use(requestTimeout());
+
+// Route-specific rate limiting
+app.use('/api/v1/auth/login', loginLimiter);
+app.use('/api/v1/auth/send-otp', otpLimiter);
+app.use('/api/v1/rides', rideLimiter);
+app.use('/api/v1/payments', paymentLimiter);
+app.use('/api/v1/admin', adminLimiter);
+app.use('/api/', generalLimiter);
+
+// 4. Request Logging (Morgan)
+const apiLogStream = fs.createWriteStream(path.join(logsDir, 'api.log'), { flags: 'a' });
+app.use(morgan('combined', { stream: apiLogStream }));
+app.use(morgan('dev')); // Console log requests
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve static uploaded media
+app.use('/uploads', express.static(uploadsBaseDir));
+
+// 5. Versioned API Routes (v1)
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/v1/rider', riderRoutes);
+app.use('/api/v1/driver', driverRoutes);
+app.use('/api/v1/rides', rideRoutes);
+app.use('/api/v1/wallet', walletRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/documents', documentRoutes);
+
+// Prepared API Version 2 route stub
+app.use('/api/v2/', (req, res) => {
+  res.status(501).json({ success: false, message: 'API version 2 is not yet implemented.' });
+});
+
+// File upload endpoint for the Supabase mock client
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: { message: 'No file uploaded' } });
+  }
+
+  try {
+    const filename = `${Date.now()}_${req.file.originalname.replace(/\s+/g, '_')}`;
+    const destination = path.join(uploadsBaseDir, filename);
+    fs.writeFileSync(destination, req.file.buffer);
+
+    console.log(`[Upload API] Saved file to local storage: ${destination}`);
+    return res.json({ path: filename });
+  } catch (err) {
+    console.error('[Upload API] Error saving file:', err.message);
+    return res.status(500).json({ success: false, error: { message: err.message } });
+  }
+});
+
+// 6. Transparent proxy mapping endpoint for backward compatibility with supabase.from() client queries
+app.post('/api/query', AdminController.executeQuery);
+
+// 7. System Health Endpoint
+app.get('/api/health', async (req, res) => {
+  const dbStatus = isMockActive() ? 'degraded (mock pool)' : 'healthy (MySQL 8 connected)';
+  const memoryUsage = process.memoryUsage();
+  
+  res.json({
+    success: true,
+    message: 'System is healthy.',
+    data: {
+      database: dbStatus,
+      sockets: {
+        status: 'healthy',
+        activeDriversOnline: getOnlineDriverCount()
+      },
+      system: {
+        memory: {
+          rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`,
+          heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)} MB`,
+          heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`
+        },
+        nodeVersion: process.version,
+        platform: process.platform,
+        uptime: `${Math.round(process.uptime())}s`
+      },
+      environment: process.env.NODE_ENV || 'development'
+    }
+  });
+});
+
+// 8. Swagger Autogen Setup Placeholder
+app.get('/api-docs', (req, res) => {
+  res.send(`
+    <html>
+      <head>
+        <title>ZipRide Swagger Documentation</title>
+        <style>body { font-family: sans-serif; padding: 40px; background: #1a1a1a; color: #fff; }</style>
+      </head>
+      <body>
+        <h1>ZipRide Backend APIs (Interactive documentation)</h1>
+        <p>Interactive endpoints swagger documentation maps standard CRUD payloads.</p>
+        <ul>
+          <li><b>POST /api/v1/auth/register</b>: Register rider</li>
+          <li><b>POST /api/v1/auth/login</b>: User credentials login</li>
+          <li><b>POST /api/v1/rides/request</b>: Request dynamic ride</li>
+          <li><b>POST /api/query</b>: Dynamic client query proxy</li>
+        </ul>
+      </body>
+    </html>
+  `);
+});
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'ZipRide Production Enterprise Server is active.' });
+});
+
+// Global Error Handler
+app.use(errorHandler);
+
+// 9. Initialize Socket.io and background Crons
+initializeSocket(server);
+CronService.initializeSchedulers();
+
+// 10. Initialize MongoDB connection — used for audit logs, tracking history, notifications.
+try {
+  await connectMongoDB();
+  await ensureMongoIndexes();
+  console.log('[MongoDB] ✅ Connected — audit_logs, ride_tracking_history, notifications ready.');
+} catch (err) {
+  console.warn('[MongoDB] Connection failed (app continues with MySQL only):', err.message);
+}
+
+// Reload watcher trigger
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`[Express] Enterprise Server successfully started on port ${PORT}`);
+});

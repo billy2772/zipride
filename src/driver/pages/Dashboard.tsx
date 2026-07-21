@@ -1,0 +1,427 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { TrendingUp, Car, Star, Clock, Power, ArrowRight, Zap } from "lucide-react";
+import { DriverShell } from "@/driver/layouts/DriverShell";
+import { StatCard, PageHeader, Pill, Avatar } from "@/shared/components/kit/Primitives";
+import { Reveal } from "@/shared/components/kit/Reveal";
+import { cn } from "@/shared/utils/cn";
+import { useAuth } from "@/auth/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
+
+
+
+export function DriverDashboard() {
+  const navigate = useNavigate();
+  const { profile, driverProfile } = useAuth();
+  const [online, setOnline] = useState(false);
+  // Sync online status from localStorage after mount (avoids SSR hydration mismatch)
+  useEffect(() => {
+    const stored = localStorage.getItem("driver_online_status");
+    setOnline(stored === null ? true : stored === "true");
+  }, []);
+  const [onlineTime, setOnlineTime] = useState("0s");
+  const [requests, setRequests] = useState<any[]>([]);
+  const [stats, setStats] = useState({ earnings: 0, trips: 0 });
+  const [liveRating, setLiveRating] = useState<number | null>(null);
+  const [ratingSum, setRatingSum] = useState<number>(0);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
+
+  // Auto-check for active ongoing ride for driver on mount or login
+  useEffect(() => {
+    if (!profile?.id) return;
+    const profileId = profile.id;
+    async function checkDriverActiveRide() {
+      try {
+        const { data: dProf } = await (supabase as any)
+          .from("driver_profiles")
+          .select("id")
+          .eq("profile_id", profileId)
+          .maybeSingle();
+
+        if (dProf?.id) {
+          const { data: activeRides } = await (supabase as any)
+            .from("rides")
+            .select("id, status")
+            .eq("driver_id", dProf.id)
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          if (activeRides && activeRides.length > 0) {
+            const ride = activeRides[0];
+            const s = (ride.status || "").toLowerCase();
+
+            if (s === "driver accepted" || s === "accepted" || s === "driver arrived" || s === "arriving") {
+              localStorage.setItem("driver_active_ride_id", String(ride.id));
+              navigate({ to: "/driver/arrived", replace: true });
+            } else if (s === "ride started" || s === "in_progress") {
+              localStorage.setItem("driver_active_ride_id", String(ride.id));
+              navigate({ to: "/driver/active", replace: true });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check driver active ride:", err);
+      }
+    }
+    checkDriverActiveRide();
+  }, [profile?.id, navigate]);
+
+  useEffect(() => {
+    localStorage.setItem("driver_online_status", online.toString());
+
+    if (!profile?.id) return;
+
+    // Helper to format seconds for UI display
+    const formatDisplay = (totalSecs: number) => {
+      const hours = Math.floor(totalSecs / 3600);
+      const minutes = Math.floor((totalSecs % 3600) / 60);
+      const seconds = totalSecs % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m ${seconds}s`;
+      return `${seconds}s`;
+    };
+
+    // 1. Check Date boundary for 24 hours daily reset
+    const todayDate = new Date().toDateString();
+    const storedDate = localStorage.getItem("driver_online_date");
+    if (storedDate !== todayDate) {
+      localStorage.setItem("driver_online_date", todayDate);
+      localStorage.setItem("driver_online_seconds", "0");
+      supabase
+        .from("driver_profiles")
+        .update({ online_seconds: 0 })
+        .eq("id", profile.id)
+        .catch(err => console.error("Error resetting daily online seconds:", err));
+    }
+
+    // Load initial seconds
+    let seconds = parseInt(localStorage.getItem("driver_online_seconds") || "0", 10);
+
+    if (!online) {
+      setOnlineTime("Offline");
+      // Sync immediately when going offline
+      supabase
+        .from("driver_profiles")
+        .update({ online_seconds: seconds, status: "offline" })
+        .eq("id", profile.id)
+        .catch(err => console.error("Error updating offline status:", err));
+      return;
+    }
+
+    // If online, sync status to online
+    supabase
+      .from("driver_profiles")
+      .update({ status: "online" })
+      .eq("id", profile.id)
+      .catch(err => console.error("Error updating online status:", err));
+
+    setOnlineTime(formatDisplay(seconds));
+
+    let tickCount = 0;
+    const interval = setInterval(() => {
+      // Check date boundary within running session
+      const currentToday = new Date().toDateString();
+      if (localStorage.getItem("driver_online_date") !== currentToday) {
+        localStorage.setItem("driver_online_date", currentToday);
+        seconds = 0;
+        localStorage.setItem("driver_online_seconds", "0");
+        supabase
+          .from("driver_profiles")
+          .update({ online_seconds: 0 })
+          .eq("id", profile.id)
+          .catch(err => console.error("Error resetting daily online seconds:", err));
+      }
+
+      seconds += 1;
+      localStorage.setItem("driver_online_seconds", seconds.toString());
+      setOnlineTime(formatDisplay(seconds));
+
+      // Periodically sync online_seconds to the database every 10 seconds
+      tickCount += 1;
+      if (tickCount >= 10) {
+        tickCount = 0;
+        supabase
+          .from("driver_profiles")
+          .update({ online_seconds: seconds })
+          .eq("id", profile.id)
+          .catch(err => console.error("Error syncing online seconds:", err));
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      // Sync on unmount
+      if (online) {
+        supabase
+          .from("driver_profiles")
+          .update({ online_seconds: seconds })
+          .eq("id", profile.id)
+          .catch(err => console.error("Error syncing online seconds on unmount:", err));
+      }
+    };
+  }, [online, profile?.id]);
+
+  const driverName = profile?.full_name ? profile.full_name.split(" ")[0] : "Driver";
+  const avgRating = liveRating !== null ? Number(liveRating).toFixed(2) : Number(driverProfile?.rating || 5.0).toFixed(2);
+  const driverRating = `${avgRating}`;
+  const avatarUrl = driverProfile?.profile_photo_url || profile?.avatar_url || "";
+
+  const loadDashboardData = async () => {
+    if (!profile?.id) return;
+    try {
+      // 1. Fetch nearby searching requests (only if driver is online)
+      if (online) {
+        const { data: rideRequests } = await supabase
+          .from("rides")
+          .select(`
+            id,
+            pickup_address,
+            dropoff_address,
+            fare,
+            distance,
+            rider:profiles!rides_rider_id_fkey(full_name)
+          `)
+          .eq("status", "searching")
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (rideRequests) {
+          setRequests(
+            rideRequests.map((r: any) => ({
+              id: r.id,
+              rider: r.rider?.full_name || "Passenger",
+              from: r.pickup_address,
+              to: r.dropoff_address,
+              fare: r.fare,
+              km: `${r.distance} km`,
+              pickupAway: "1.2 km",
+              pay: "UPI",
+            }))
+          );
+        }
+      } else {
+        setRequests([]);
+      }
+
+      // 2. Fetch driver stats for today
+      const todayStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      const { data: completedRides } = await supabase
+        .from("rides")
+        .select("fare")
+        .eq("driver_id", profile.id)
+        .eq("status", "completed")
+        .gte("created_at", `${todayStr}T00:00:00.000Z`);
+
+      if (completedRides) {
+        const earnings = completedRides.reduce((sum: number, r: any) => sum + Number(r.fare || 0), 0);
+        setStats({
+          earnings,
+          trips: completedRides.length,
+        });
+      }
+
+      // 3. Fetch latest driver profile rating dynamically
+      const { data: dProf } = await supabase
+        .from("driver_profiles")
+        .select("rating, id")
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+
+      if (dProf) {
+        setLiveRating(dProf.rating);
+        const { data: ratingsData } = await supabase
+          .from("ratings")
+          .select("rating, comment, created_at")
+          .eq("driver_id", dProf.id)
+          .order("created_at", { ascending: false });
+        if (ratingsData) {
+          const sum = ratingsData.reduce((acc: number, r: any) => acc + Number(r.rating), 0);
+          setRatingSum(sum);
+          setReviewsList(ratingsData);
+        }
+      }
+    } catch (e) {
+      console.error("Error loading dashboard data:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+    const interval = setInterval(loadDashboardData, 3000);
+    return () => clearInterval(interval);
+  }, [profile]);
+
+  useEffect(() => {
+    const status = (driverProfile?.verification_status || "").toLowerCase();
+    if (status !== "approved" && online) {
+      setOnline(false);
+      localStorage.setItem("driver_online_status", "false");
+    }
+  }, [driverProfile?.verification_status]);
+
+  const handleToggleOnline = () => {
+    const status = (driverProfile?.verification_status || "").toLowerCase();
+    if (status !== "approved") {
+      alert(`Your account verification status is "${driverProfile?.verification_status || "Pending"}". You cannot go online until your driver credentials are approved by an administrator.`);
+      return;
+    }
+    setOnline(!online);
+  };
+
+  const handleAccept = async (rideId: string) => {
+    if (!profile?.id) return;
+    try {
+      const { error } = await supabase
+        .from("rides")
+        .update({
+          driver_id: profile.id,
+          status: "accepted" as any,
+        })
+        .eq("id", rideId);
+
+      if (error) throw new Error(error.message);
+
+      localStorage.setItem("driver_active_ride_id", rideId);
+      alert("Ride accepted! Heading to pickup.");
+      navigate({ to: "/driver/arrived", replace: true });
+    } catch (err: any) {
+      alert("Failed to accept ride: " + err.message);
+    }
+  };
+
+  return (
+    <DriverShell>
+      <div className="flex items-center justify-between gap-4 border-b border-border pb-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Avatar
+            label={driverName[0]}
+            src={avatarUrl}
+            className="h-14 w-14 text-lg border-2 border-primary shadow-soft"
+          />
+          <div>
+            <h1 className="text-2xl font-extrabold text-foreground">Hi, {driverName}</h1>
+            <p className="text-xs text-muted-foreground">Welcome back, let's make some trips today</p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleToggleOnline}
+          className={cn(
+            "flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-white shadow-glow transition-colors",
+            online ? "bg-success" : "bg-muted-foreground",
+          )}
+        >
+          <Power className="h-4 w-4" /> {online ? "Online" : "Offline"}
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          value={`₹${stats.earnings}`}
+          label="Today's earnings"
+          icon={<TrendingUp />}
+        />
+        <StatCard value={stats.trips} label="Trips today" icon={<Car />} />
+        <StatCard value={onlineTime} label={online ? "Online time" : "Offline time"} icon={<Clock />} />
+      </div>
+
+      {/* Ratings & Reviews Box */}
+      <div className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-soft">
+        <h3 className="text-lg font-extrabold mb-4">Ratings & Reviews</h3>
+        <div className="flex items-center gap-4 border-b border-border pb-4 mb-4">
+          <div className="text-4xl font-extrabold text-foreground">{avgRating}</div>
+          <div>
+            <div className="flex text-warning">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Zap
+                  key={i}
+                  className={cn(
+                    "h-5 w-5",
+                    i < Math.round(Number(avgRating)) ? "fill-warning text-warning" : "text-muted"
+                  )}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Average rating score ({reviewsList.length} reviews)</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+          {reviewsList.length > 0 ? (
+            reviewsList.map((rev: any, idx: number) => (
+              <div key={idx} className="rounded-xl bg-muted/40 p-3 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex text-warning">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Zap
+                        key={i}
+                        className={cn(
+                          "h-3 w-3",
+                          i < rev.rating ? "fill-warning text-warning" : "text-muted"
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xxs text-muted-foreground">
+                    {new Date(rev.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                {rev.comment && (
+                  <p className="mt-1.5 text-xs text-foreground font-medium italic">
+                    "{rev.comment}"
+                  </p>
+                )}
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">No reviews received yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <h2 className="text-lg font-extrabold">Nearby ride requests</h2>
+        <Link to="/driver/requests" className="text-sm font-semibold text-primary">
+          View all
+        </Link>
+      </div>
+      <div className="mt-3 space-y-3">
+        {requests.length > 0 ? (
+          requests.map((r, i) => (
+            <Reveal key={r.id} delay={i * 0.05}>
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold">{r.rider}</p>
+                    <Pill tone="brand">{r.pickupAway} away</Pill>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {r.from} → {r.to}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.km} · {r.pay}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <p className="text-xl font-extrabold">₹{r.fare}</p>
+                  <button
+                    onClick={() => handleAccept(r.id)}
+                    className="flex items-center gap-1.5 rounded-xl gradient-brand px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-glow hover:scale-[1.02] transition-transform"
+                  >
+                    Accept <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </Reveal>
+          ))
+        ) : (
+          <Reveal>
+            <div className="rounded-2xl border border-border bg-card p-8 text-center text-muted-foreground shadow-soft">
+              No incoming ride requests nearby.
+            </div>
+          </Reveal>
+        )}
+      </div>
+    </DriverShell>
+  );
+}
