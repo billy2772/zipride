@@ -84,13 +84,21 @@ export const AuthRepository = {
       id, email, fullName, phone, dob, gender, passwordHash, username
     } = data;
 
-    // Generate a unique referral code
-    const referralCode = `ZR${username.toUpperCase().substring(0, 4)}${Math.floor(1000 + Math.random() * 9000)}`;
+    const cleanUsername = (username && username.trim()) ? username.trim() : null;
+    const cleanEmail = (email && email.trim()) ? email.trim() : null;
+    const cleanPhone = (phone && phone.trim()) ? phone.trim() : null;
+    const cleanDob = (dob && dob.trim()) ? dob.trim() : null;
+    const cleanGender = (gender && gender.trim()) ? gender.trim() : null;
+
+    // Generate a unique referral code safely
+    const seed = (cleanUsername || fullName || cleanEmail || 'RIDER').replace(/[^a-zA-Z0-9]/g, '');
+    const cleanSeed = (seed.substring(0, 4) || 'RIDE').toUpperCase().padEnd(4, 'X');
+    const referralCode = `ZR${cleanSeed}${Math.floor(1000 + Math.random() * 9000)}`;
 
     await db.execute(
       `INSERT INTO profiles (id, username, password_hash, full_name, phone, email, role, referral_code, date_of_birth, gender, account_status, phone_verified, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 'rider', ?, ?, ?, 'active', 0, NOW(), NOW())`,
-      [id, username, passwordHash, fullName, phone, email, referralCode, dob || null, gender || null]
+      [id, cleanUsername, passwordHash || null, fullName || null, cleanPhone, cleanEmail, referralCode, cleanDob, cleanGender]
     );
 
     // Auto-create wallet

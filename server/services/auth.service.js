@@ -23,8 +23,9 @@ export const AuthService = {
       if (existingPhone) throw new Error('Phone number is already registered.');
     }
 
-    // Hash the password hash (the frontend SHA-256 hash behaves as the password) with bcrypt
-    const bcryptPasswordHash = await bcrypt.hash(passwordHash, 10);
+    // Hash the password hash (the frontend SHA-256 hash or default fallback for OTP registration)
+    const rawPass = (passwordHash && passwordHash.trim() !== '') ? passwordHash : 'default_otp_password_2026';
+    const bcryptPasswordHash = await bcrypt.hash(rawPass, 10);
     const userId = crypto.randomUUID();
 
     const newUser = await UserModel.create({

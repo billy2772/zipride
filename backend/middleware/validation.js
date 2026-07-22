@@ -13,11 +13,11 @@ export const validateRequest = (req, res, next) => {
 };
 
 export const registerRiderValidationRules = [
-  body('email').isEmail().withMessage('Please provide a valid email address.').normalizeEmail(),
-  body('phone').matches(/^\+?[0-9\s-]{8,20}$/).withMessage('Please enter a valid phone number.'),
-  body('fullName').trim().isLength({ min: 2 }).withMessage('Full name must be at least 2 characters.'),
-  body('passwordHash').isLength({ min: 6 }).withMessage('Password hash must be at least 6 characters.'),
-  body('username').trim().toLowerCase().matches(/^[a-z0-9_.-]+$/).withMessage('Username can contain letters, numbers, underscores, periods, and hyphens.')
+  body('email').optional({ checkFalsy: true }).isEmail().withMessage('Please provide a valid email address.').normalizeEmail(),
+  body('phone').optional({ checkFalsy: true }).matches(/^\+?[0-9\s-]{8,20}$/).withMessage('Please enter a valid phone number.'),
+  body('fullName').optional({ checkFalsy: true }).trim(),
+  body('passwordHash').optional({ checkFalsy: true }),
+  body('username').optional({ checkFalsy: true })
 ];
 
 export const loginValidationRules = [

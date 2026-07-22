@@ -1,17 +1,24 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from process env and backend/.env
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const connectionConfig = {
-  host: process.env.MYSQL_HOST,
-  port: Number(process.env.MYSQL_PORT),
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE,
+  host: process.env.MYSQL_HOST || 'localhost',
+  port: Number(process.env.MYSQL_PORT) || 3307,
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASSWORD || '',
+  database: process.env.MYSQL_DATABASE || 'zipride',
 
   ssl: {
-    rejectUnauthorized: true
+    rejectUnauthorized: false
   },
 
   waitForConnections: true,

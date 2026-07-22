@@ -13,6 +13,9 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    resolve: {
+      dedupe: ["react", "react-dom", "@tanstack/react-router"],
+    },
     server: {
       proxy: {
         '/api': {

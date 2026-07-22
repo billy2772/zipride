@@ -15,24 +15,31 @@ export const AuthController = {
     try {
       const { email, passwordHash, fullName, phone, dob, gender, username, referralCode } = req.body;
 
-      // 1. Validate duplicates
-      const emailExists = await AuthRepository.findByEmail(email);
-      if (emailExists) {
-        return res.status(400).json({ success: false, message: 'Email address already in use.' });
+      // 1. Validate duplicates safely
+      if (email && email.trim() !== '') {
+        const emailExists = await AuthRepository.findByEmail(email.trim());
+        if (emailExists) {
+          return res.status(400).json({ success: false, message: 'Email address already in use.' });
+        }
       }
 
-      const phoneExists = await AuthRepository.findByPhone(phone);
-      if (phoneExists) {
-        return res.status(400).json({ success: false, message: 'Phone number already in use.' });
+      if (phone && phone.trim() !== '') {
+        const phoneExists = await AuthRepository.findByPhone(phone.trim());
+        if (phoneExists) {
+          return res.status(400).json({ success: false, message: 'Phone number already in use.' });
+        }
       }
 
-      const usernameExists = await AuthRepository.findByUsername(username);
-      if (usernameExists) {
-        return res.status(400).json({ success: false, message: 'Username is already taken.' });
+      if (username && username.trim() !== '') {
+        const usernameExists = await AuthRepository.findByUsername(username.trim());
+        if (usernameExists) {
+          return res.status(400).json({ success: false, message: 'Username is already taken.' });
+        }
       }
 
-      // 2. Hash Password (standard password input behavior hashes client sha256 output with bcrypt)
-      const bcryptHash = await bcrypt.hash(passwordHash, 10);
+      // 2. Hash Password (standard password input behavior or default for OTP registration)
+      const rawPassword = (passwordHash && passwordHash.trim() !== '') ? passwordHash : 'default_otp_password_2026';
+      const bcryptHash = await bcrypt.hash(rawPassword, 10);
       const riderId = crypto.randomUUID();
 
       const rider = await AuthRepository.createRider({
@@ -56,22 +63,35 @@ export const AuthController = {
         }
       }
 
-      await AuditService.logAction({
-        profileId: riderId,
-        action: 'Registration',
-        tableName: 'profiles',
-        recordId: riderId,
-        ipAddress: req.ip,
-        notes: 'Rider registration successful'
-      });
-      // Dual-write: MongoDB audit log
-      logAuditEvent({ eventType: 'RIDER_REGISTERED', userId: riderId, role: 'rider', details: { email, username }, ipAddress: req.ip });
+      try {
+        await AuditService.logAction({
+          profileId: riderId,
+          action: 'Registration',
+          tableName: 'profiles',
+          recordId: riderId,
+          ipAddress: req.ip,
+          notes: 'Rider registration successful'
+        });
+      } catch (e) {
+        console.warn('[authController] Audit log failed:', e.message);
+      }
 
-      await NotificationService.sendPushNotification(
-        riderId,
-        'Registration Successful',
-        'Welcome to ZipRide! Your registration was successful.'
-      );
+      try {
+        // Dual-write: MongoDB audit log
+        logAuditEvent({ eventType: 'RIDER_REGISTERED', userId: riderId, role: 'rider', details: { email, username }, ipAddress: req.ip });
+      } catch (e) {
+        console.warn('[authController] Mongo audit log failed:', e.message);
+      }
+
+      try {
+        await NotificationService.sendPushNotification(
+          riderId,
+          'Registration Successful',
+          'Welcome to ZipRide! Your registration was successful.'
+        );
+      } catch (e) {
+        console.warn('[authController] Push notification failed:', e.message);
+      }
 
       const token = generateAccessToken({
         id: rider.id,
