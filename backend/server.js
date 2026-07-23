@@ -77,11 +77,42 @@ app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production',
   hsts: process.env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false,
 }));
+// Allowed origins: comma-separated list from env, plus hardcoded Vercel deployment domain.
+// In production set CORS_ORIGINS on Render to:
+//   https://zipride-khaki.vercel.app,https://zipride-1.onrender.com
+const ALLOWED_ORIGINS = [
+  ...(process.env.CORS_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean),
+  'https://zipride-khaki.vercel.app',  // primary Vercel production URL
+  'http://localhost:5173',             // local dev (Vite)
+  'http://localhost:3000',             // local dev (CRA / fallback)
+];
+
 app.use(cors({
-  origin: (process.env.CORS_ORIGINS || 'http://localhost:5173').split(',').map(o => o.trim()),
+  origin: (origin, callback) => {
+    // Allow requests with no Origin header (e.g. server-to-server, curl, Render health checks)
+    if (!origin) return callback(null, true);
+
+    // Allow the exact origin or any *.vercel.app preview deployment for this project
+    const allowed =
+      ALLOWED_ORIGINS.includes(origin) ||
+      /^https:\/\/zipride(-[\w-]+)?\.vercel\.app$/.test(origin);
+
+    if (allowed) {
+      callback(null, origin); // reflect the requesting origin (required for credentials)
+    } else {
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      callback(new Error(`CORS policy: origin '${origin}' is not allowed.`));
+    }
+  },
   exposedHeaders: ['X-JWT-Token'],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204 for OPTIONS
 }));
+
+// Explicitly handle all OPTIONS preflight requests before any other middleware
+app.options('*', cors());
 
 // Request timeout (prevents resource exhaustion from slow clients)
 app.use(requestTimeout());
