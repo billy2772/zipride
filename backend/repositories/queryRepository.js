@@ -5,6 +5,9 @@ import db from '../config/db.js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 
+const cleanParam = (val) => (val === undefined ? null : val);
+const cleanParams = (arr) => (Array.isArray(arr) ? arr.map(cleanParam) : []);
+
 const tableMap = {
   profiles: 'profiles',
   driver_profiles: 'driver_profiles',
@@ -173,82 +176,92 @@ const mapVerificationStatusToFrontend = (val) => {
 
 
 export const QueryRepository = {
-  async executeDynamicQuery(params) {
-    const {
-      table,
-      action = 'select',
-      payload,
-      select = '*',
-      filters = [],
-      order,
-      limit,
-      single = false,
-      maybeSingle = false,
-    } = params;
+  async executeDynamicQuery(params = {}) {
+    try {
+      const {
+        table,
+        action = 'select',
+        payload,
+        select = '*',
+        filters = [],
+        order,
+        limit,
+        single = false,
+        maybeSingle = false,
+      } = params || {};
 
-    const mappedTable = tableMap[table] || table;
-    const setup = querySetups[table];
+      if (!table) {
+        return { data: null, error: { message: 'Table name is required for query.' } };
+      }
 
-    if (table === 'ride_chats') {
-      await db.query(`
-        CREATE TABLE IF NOT EXISTS \`ride_chats\` (
-          \`id\` INT AUTO_INCREMENT NOT NULL,
-          \`ride_id\` VARCHAR(50) NOT NULL,
-          \`sender_id\` VARCHAR(50) NOT NULL,
-          \`message\` TEXT NOT NULL,
-          \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          PRIMARY KEY (\`id\`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-      `).catch(() => {});
-    }
+      const safeFilters = Array.isArray(filters) ? filters : [];
+      const mappedTable = tableMap[table] || table;
+      const setup = querySetups[table];
 
-    if (action === 'select') {
-      const passFilter = filters.find(f => f.column === 'password_hash' && f.operator === 'eq');
-      const userFilter = filters.find(f => (f.column === 'username' || f.column === 'email' || f.column === 'phone' || f.column === 'id') && f.operator === 'eq');
-
-      // Login Verification
-      if (table === 'profiles' && passFilter && userFilter) {
-        const usernameVal = userFilter.value;
-        const passVal = passFilter.value;
-        const usernameStr = String(usernameVal || '');
-
-        // Ensure waste table exists
+      if (table === 'ride_chats') {
         await db.query(`
-          CREATE TABLE IF NOT EXISTS \`waste\` (
-            \`id\` CHAR(36) NOT NULL,
-            \`firebase_uid\` VARCHAR(128) DEFAULT NULL,
-            \`username\` VARCHAR(50) DEFAULT NULL,
-            \`password_hash\` VARCHAR(255) DEFAULT NULL,
-            \`full_name\` VARCHAR(100) DEFAULT NULL,
-            \`phone\` VARCHAR(20) DEFAULT NULL,
-            \`email\` VARCHAR(100) DEFAULT NULL,
-            \`role\` VARCHAR(20) DEFAULT 'rider',
-            \`deleted_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          CREATE TABLE IF NOT EXISTS \`ride_chats\` (
+            \`id\` INT AUTO_INCREMENT NOT NULL,
+            \`ride_id\` VARCHAR(50) NOT NULL,
+            \`sender_id\` VARCHAR(50) NOT NULL,
+            \`message\` TEXT NOT NULL,
+            \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (\`id\`)
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
         `).catch(() => {});
+      }
 
-        const [users] = await db.query(
-          'SELECT * FROM profiles WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR RIGHT(REPLACE(phone, \' \', \'\'), 10) = RIGHT(REPLACE(?, \' \', \'\'), 10) OR id = ?',
-          [usernameStr.toLowerCase(), usernameStr.toLowerCase(), usernameStr, usernameStr]
-        );
-        const user = users[0];
+      if (action === 'select') {
+        const passFilter = safeFilters.find(f => f && f.column === 'password_hash' && f.operator === 'eq');
+        const userFilter = safeFilters.find(f => f && (f.column === 'username' || f.column === 'email' || f.column === 'phone' || f.column === 'id') && f.operator === 'eq');
 
-        if (!user) {
-          const [deleted] = await db.query(
-            'SELECT * FROM waste WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR RIGHT(REPLACE(phone, \' \', \'\'), 10) = RIGHT(REPLACE(?, \' \', \'\'), 10) OR id = ?',
-            [usernameStr.toLowerCase(), usernameStr.toLowerCase(), usernameStr, usernameStr]
+        // Login Verification
+        if (table === 'profiles' && passFilter && userFilter) {
+          const usernameVal = userFilter.value;
+          const passVal = passFilter.value;
+          const usernameStr = String(usernameVal || '');
+
+          // Ensure waste table exists
+          await db.query(`
+            CREATE TABLE IF NOT EXISTS \`waste\` (
+              \`id\` CHAR(36) NOT NULL,
+              \`firebase_uid\` VARCHAR(128) DEFAULT NULL,
+              \`username\` VARCHAR(50) DEFAULT NULL,
+              \`password_hash\` VARCHAR(255) DEFAULT NULL,
+              \`full_name\` VARCHAR(100) DEFAULT NULL,
+              \`phone\` VARCHAR(20) DEFAULT NULL,
+              \`email\` VARCHAR(100) DEFAULT NULL,
+              \`role\` VARCHAR(20) DEFAULT 'rider',
+              \`deleted_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (\`id\`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+          `).catch(() => {});
+
+          const [users] = await db.query(
+            'SELECT * FROM profiles WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR RIGHT(REPLACE(phone, \' \', \'\'), 10) = RIGHT(REPLACE(?, \' \', \'\'), 10) OR id = ?',
+            cleanParams([usernameStr.toLowerCase(), usernameStr.toLowerCase(), usernameStr, usernameStr])
           );
-          if (deleted.length > 0) {
-            return { data: null, error: { message: 'This account was deleted.' } };
-          }
-          return { data: null, error: { message: 'Invalid username or password.' } };
-        }
+          const user = users[0];
 
-        const isMatch = await bcrypt.compare(passVal, user.password_hash);
-        if (!isMatch) {
-          return { data: null, error: { message: 'Invalid username or password.' } };
-        }
+          if (!user) {
+            const [deleted] = await db.query(
+              'SELECT * FROM waste WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) OR RIGHT(REPLACE(phone, \' \', \'\'), 10) = RIGHT(REPLACE(?, \' \', \'\'), 10) OR id = ?',
+              cleanParams([usernameStr.toLowerCase(), usernameStr.toLowerCase(), usernameStr, usernameStr])
+            );
+            if (deleted && deleted.length > 0) {
+              return { data: null, error: { message: 'This account was deleted.' } };
+            }
+            return { data: null, error: { message: 'Invalid username or password.' } };
+          }
+
+          let isMatch = false;
+          if (user.password_hash && passVal) {
+            isMatch = await bcrypt.compare(passVal, user.password_hash);
+          }
+
+          if (!isMatch) {
+            return { data: null, error: { message: 'Invalid username or password.' } };
+          }
 
         // Validate account role restrictions
         const roleFilter = filters.find(f => f.column === 'role' && f.operator === 'eq');
@@ -1036,11 +1049,12 @@ export const QueryRepository = {
       }
 
       const sql = `DELETE FROM \`${mappedTable}\` WHERE ${whereClauses.join(' AND ')}`;
-      await db.query(sql, queryParams);
+      await db.query(sql, cleanParams(queryParams));
 
       return { data: { message: 'Delete complete' }, error: null };
+    } catch (err) {
+      console.error(`[QueryRepository] Execution failed for table "${params?.table}":`, err.message);
+      return { data: null, error: { message: err.message || 'Database query execution failed.' } };
     }
-
-    throw new Error(`Unsupported dynamic action: ${action}`);
   }
 };

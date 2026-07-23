@@ -15,11 +15,12 @@ export const AdminController = {
   // Legacy frontend proxy query endpoint (Supabase compatibility layer)
   async executeQuery(req, res, next) {
     try {
-      const result = await QueryRepository.executeDynamicQuery(req.body);
+      const payload = req.body || {};
+      const result = await QueryRepository.executeDynamicQuery(payload);
 
       // If the query is on the profiles table with a password filter, inject a JWT
-      const passFilter = req.body.filters?.find(f => f.column === 'password_hash' && f.operator === 'eq');
-      if (req.body.table === 'profiles' && passFilter && result.data) {
+      const passFilter = payload.filters?.find(f => f?.column === 'password_hash' && f?.operator === 'eq');
+      if (payload.table === 'profiles' && passFilter && result?.data) {
         const row = Array.isArray(result.data) ? result.data[0] : result.data;
         if (row && row.id) {
           const token = generateAccessToken({
@@ -35,9 +36,9 @@ export const AdminController = {
       }
 
       return res.json({
-        data: result.data,
-        count: result.count,
-        error: result.error,
+        data: result?.data ?? null,
+        count: result?.count ?? null,
+        error: result?.error ?? null,
       });
     } catch (err) {
       console.error('[Admin Query Proxy] FAILED request payload:', JSON.stringify(req.body, null, 2));
@@ -50,7 +51,11 @@ export const AdminController = {
         const logPath = path.resolve(dirname, '../logs/error.log');
         fs.appendFileSync(logPath, `[${new Date().toISOString()}] [QUERY_ERROR] payload: ${JSON.stringify(req.body)} error: ${err.message}\n${err.stack}\n`);
       } catch (logErr) {}
-      res.status(500).json({ error: { message: err.message } });
+      return res.json({
+        data: null,
+        count: null,
+        error: { message: err.message || 'Dynamic query execution failed.' }
+      });
     }
   },
 
