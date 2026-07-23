@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { LogoMark } from "@/shared/components/brand/Logo";
 import { Reveal } from "@/shared/components/kit/Reveal";
 import { InteractivePhone } from "@/shared/components/kit/Primitives";
+import { resolveAssetUrl } from "@/shared/utils/resolveAssetUrl";
 
 type VerificationStatus = "approved" | "pending" | "rejected";
 
@@ -36,12 +37,7 @@ const EMPTY_STATE: VerificationState = {
   licenseImageUrl: "",
 };
 
-function resolveDocUrl(url: string | null | undefined): string {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const path = url.startsWith("/") ? url : `/${url}`;
-  return `http://localhost:5000${path}`;
-}
+
 
 function normalizeStatus(value?: string | null): VerificationStatus {
   const status = (value || "pending").toLowerCase();
@@ -150,8 +146,8 @@ export function Verification() {
           vehicle: driverData?.vehicle_type || "Not provided",
           driverCode: driverData?.driver_code || "—",
           submittedAt: formatDate(driverData?.created_at || driverProfile?.created_at),
-          profilePhotoUrl: resolveDocUrl(documentRow?.profile_photo || documentRow?.profile_photo_url || null),
-          licenseImageUrl: resolveDocUrl(documentRow?.license_photo || documentRow?.license_image_url || null),
+          profilePhotoUrl: resolveAssetUrl(documentRow?.profile_photo || documentRow?.profile_photo_url || null),
+          licenseImageUrl: resolveAssetUrl(documentRow?.license_photo || documentRow?.license_image_url || null),
         });
       } catch (err: any) {
         console.error("Verification page load error:", err);

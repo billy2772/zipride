@@ -7,12 +7,9 @@ import { cn } from "@/shared/utils/cn";
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { Pill, Avatar, InteractivePhone } from "@/shared/components/kit/Primitives";
 import { Reveal } from "@/shared/components/kit/Reveal";
+import { resolveAssetUrl } from "@/shared/utils/resolveAssetUrl";
 
-function resolveUrl(url: string | null | undefined): string {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  return `http://localhost:5000${url.startsWith("/") ? "" : "/"}${url}`;
-}
+
 
 function getAuthHeaders(): HeadersInit {
   const jwtToken = sessionStorage.getItem("jwt_token") || localStorage.getItem("jwt_token");
@@ -233,8 +230,8 @@ export function DriverMgmt() {
             const isExpanded = expandedId === d.driver_id;
             const isPending = (d.verification_status || "").toLowerCase() === "pending";
             const isApproved = (d.verification_status || "").toLowerCase() === "approved";
-            const photoUrl = resolveUrl(d.profile_photo_url);
-            const licenseUrl = resolveUrl(d.license_image_url);
+            const photoUrl = resolveAssetUrl(d.profile_photo_url);
+            const licenseUrl = resolveAssetUrl(d.license_image_url);
             const vehicle = d.vehicle_make
               ? `${d.vehicle_color || ""} ${d.vehicle_make} ${d.vehicle_model}`.trim()
               : "No vehicle";

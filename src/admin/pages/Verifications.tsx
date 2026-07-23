@@ -7,17 +7,13 @@ import {
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { Pill, Avatar, InteractivePhone } from "@/shared/components/kit/Primitives";
 import { Reveal } from "@/shared/components/kit/Reveal";
+import { resolveAssetUrl } from "@/shared/utils/resolveAssetUrl";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function resolveDocUrl(url: string | null | undefined): string {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const path = url.startsWith("/") ? url : `/${url}`;
-  return `http://localhost:5000${path}`;
-}
+
 
 function getAuthHeaders(): HeadersInit {
   const jwtToken = sessionStorage.getItem("jwt_token") || localStorage.getItem("jwt_token");
@@ -132,8 +128,8 @@ export function Verifications() {
               : null,
             plate: d.license_plate || null,
             verificationStatus: (d.verification_status || "Pending"),
-            profilePhotoUrl: resolveDocUrl(d.profile_photo_url),
-            licenseImageUrl: resolveDocUrl(d.license_image_url),
+            profilePhotoUrl: resolveAssetUrl(d.profile_photo_url),
+            licenseImageUrl: resolveAssetUrl(d.license_image_url),
             submittedAt: d.created_at
               ? new Date(d.created_at).toLocaleDateString("en-IN", {
                   day: "numeric",
