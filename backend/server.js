@@ -208,12 +208,13 @@ initializeSocket(server);
 CronService.initializeSchedulers();
 
 // 10. Initialize MongoDB connection — used for audit logs, tracking history, notifications.
+// connectMongoDB() prints ✅ / ❌ internally; no duplicate log needed here.
 try {
   await connectMongoDB();
   await ensureMongoIndexes();
-  console.log('[MongoDB] ✅ Connected — audit_logs, ride_tracking_history, notifications ready.');
 } catch (err) {
-  console.warn('[MongoDB] Connection failed (app continues with MySQL only):', err.message);
+  console.error(`❌ MongoDB Connection Failed: ${err.message}`);
+  console.error('[MongoDB] App continues with MySQL only — MongoDB-backed features (audit logs, tracking history, notifications) will be unavailable.');
 }
 
 // Reload watcher trigger

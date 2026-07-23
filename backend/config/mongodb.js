@@ -1,54 +1,61 @@
 // backend/config/mongodb.js
-// MongoDB connection using native driver — used for logs, tracking, notifications.
-// MySQL remains the primary database for all relational/transactional data.
+// MongoDB connection using Mongoose
 
-import { MongoClient } from 'mongodb';
-import dotenv from 'dotenv';
-dotenv.config();
+import mongoose from "mongoose";
 
-const MONGO_URI =
-  process.env.MONGODB_URI ||
-  process.env.MONGO_URI ||
-  'mongodb://localhost:27017/zipride';
-const MONGO_DB  = process.env.MONGO_DB  || 'zipride';
-
-let client = null;
-let db     = null;
+let isConnected = false;
 
 export async function connectMongoDB() {
-  if (db) return db;
+  const mongoUri = process.env.MONGODB_URI;
+
+  if (!mongoUri || mongoUri.trim() === "") {
+    const err = new Error("MONGODB_URI environment variable is missing.");
+    console.error(`❌ MongoDB Connection Failed: ${err.message}`);
+    throw err;
+  }
+
+  // Already connected
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return mongoose.connection.db;
+  }
+
   try {
-    client = new MongoClient(MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 5000,
-    });
-    await client.connect();
-    db = client.db(MONGO_DB);
-    console.log('[MongoDB] Connected successfully to', MONGO_DB);
-    return db;
+    await mongoose.connect(mongoUri);
+
+    isConnected = true;
+
+    console.log("✅ MongoDB Connected");
+
+    return mongoose.connection.db;
   } catch (err) {
-    console.warn('[MongoDB] Connection failed (non-fatal — MySQL still active):', err.message);
-    db = null;
-    return null;
+    isConnected = false;
+
+    console.error(`❌ MongoDB Connection Failed: ${err.message}`);
+
+    throw err;
   }
 }
 
 export function getMongoDB() {
-  return db;
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection.db;
+  }
+  return null;
 }
 
 export function getDB() {
-  return db;
+  return getMongoDB();
 }
 
 export function isDBConnected() {
-  return db !== null;
+  return mongoose.connection.readyState === 1;
 }
 
 export async function closeMongoDB() {
-  if (client) {
-    await client.close();
-    db     = null;
-    client = null;
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+    isConnected = false;
   }
 }
+
+export default connectMongoDB;
