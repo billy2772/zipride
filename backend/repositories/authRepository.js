@@ -42,25 +42,28 @@ export const AuthRepository = {
   },
 
   async findByEmail(email) {
+    if (!email || typeof email !== 'string' || !email.trim()) return null;
     const [rows] = await db.execute(
       `SELECT * FROM profiles WHERE email = ? LIMIT 1`,
-      [email]
+      [email.trim()]
     );
     return rows[0] || null;
   },
 
   async findByPhone(phone) {
+    if (!phone || typeof phone !== 'string' || !phone.trim()) return null;
     const [rows] = await db.execute(
       `SELECT * FROM profiles WHERE RIGHT(REPLACE(phone, ' ', ''), 10) = RIGHT(REPLACE(?, ' ', ''), 10) LIMIT 1`,
-      [phone]
+      [phone.trim()]
     );
     return rows[0] || null;
   },
 
   async findByUsername(username) {
+    if (!username || typeof username !== 'string' || !username.trim()) return null;
     const [rows] = await db.execute(
       `SELECT * FROM profiles WHERE username = ? LIMIT 1`,
-      [username]
+      [username.trim()]
     );
     return rows[0] || null;
   },

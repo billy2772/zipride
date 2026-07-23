@@ -16,21 +16,21 @@ export const AuthController = {
       const { email, passwordHash, fullName, phone, dob, gender, username, referralCode } = req.body;
 
       // 1. Validate duplicates safely
-      if (email && email.trim() !== '') {
+      if (email && typeof email === 'string' && email.trim() !== '') {
         const emailExists = await AuthRepository.findByEmail(email.trim());
         if (emailExists) {
           return res.status(400).json({ success: false, message: 'Email address already in use.' });
         }
       }
 
-      if (phone && phone.trim() !== '') {
+      if (phone && typeof phone === 'string' && phone.trim() !== '') {
         const phoneExists = await AuthRepository.findByPhone(phone.trim());
         if (phoneExists) {
           return res.status(400).json({ success: false, message: 'Phone number already in use.' });
         }
       }
 
-      if (username && username.trim() !== '') {
+      if (username && typeof username === 'string' && username.trim() !== '') {
         const usernameExists = await AuthRepository.findByUsername(username.trim());
         if (usernameExists) {
           return res.status(400).json({ success: false, message: 'Username is already taken.' });
@@ -38,7 +38,7 @@ export const AuthController = {
       }
 
       // 2. Hash Password (standard password input behavior or default for OTP registration)
-      const rawPassword = (passwordHash && passwordHash.trim() !== '') ? passwordHash : 'default_otp_password_2026';
+      const rawPassword = (passwordHash && typeof passwordHash === 'string' && passwordHash.trim() !== '') ? passwordHash : 'default_otp_password_2026';
       const bcryptHash = await bcrypt.hash(rawPassword, 10);
       const riderId = crypto.randomUUID();
 
@@ -54,13 +54,16 @@ export const AuthController = {
       });
 
       // 3. Auto credit Wallet & check referrals
-      await WalletService.getBalance(riderId);
-      if (referralCode) {
-        // Find referrer by username
-        const referrer = await AuthRepository.findByUsername(referralCode.trim());
-        if (referrer) {
-          await WalletService.applyReferralReward(riderId, referrer.id, 50.00);
+      try {
+        await WalletService.getBalance(riderId);
+        if (referralCode && typeof referralCode === 'string' && referralCode.trim() !== '') {
+          const referrer = await AuthRepository.findByUsername(referralCode.trim());
+          if (referrer) {
+            await WalletService.applyReferralReward(riderId, referrer.id, 50.00);
+          }
         }
+      } catch (e) {
+        console.warn('[authController] Wallet/referral setup warning:', e.message);
       }
 
       try {
@@ -133,22 +136,29 @@ export const AuthController = {
       } = req.body;
 
       // Validate credentials
-      const emailExists = await AuthRepository.findByEmail(email);
-      if (emailExists) {
-        return res.status(400).json({ success: false, message: 'Email address already in use.' });
+      if (email && typeof email === 'string' && email.trim() !== '') {
+        const emailExists = await AuthRepository.findByEmail(email.trim());
+        if (emailExists) {
+          return res.status(400).json({ success: false, message: 'Email address already in use.' });
+        }
       }
 
-      const phoneExists = await AuthRepository.findByPhone(phone);
-      if (phoneExists) {
-        return res.status(400).json({ success: false, message: 'Phone number already registered.' });
+      if (phone && typeof phone === 'string' && phone.trim() !== '') {
+        const phoneExists = await AuthRepository.findByPhone(phone.trim());
+        if (phoneExists) {
+          return res.status(400).json({ success: false, message: 'Phone number already registered.' });
+        }
       }
 
-      const userExists = await AuthRepository.findByUsername(username);
-      if (userExists) {
-        return res.status(400).json({ success: false, message: 'Username is already taken.' });
+      if (username && typeof username === 'string' && username.trim() !== '') {
+        const userExists = await AuthRepository.findByUsername(username.trim());
+        if (userExists) {
+          return res.status(400).json({ success: false, message: 'Username is already taken.' });
+        }
       }
 
-      const bcryptHash = await bcrypt.hash(passwordHash, 10);
+      const rawPassword = (passwordHash && typeof passwordHash === 'string' && passwordHash.trim() !== '') ? passwordHash : 'default_otp_password_2026';
+      const bcryptHash = await bcrypt.hash(rawPassword, 10);
       const driverId = crypto.randomUUID();
 
       // Check if auto-approve is enabled in platform settings

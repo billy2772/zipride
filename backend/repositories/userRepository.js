@@ -78,21 +78,17 @@ export const UserRepository = {
     );
   },
 
-  // Refresh token storage — stored in profiles.password_hash column sibling using a dedicated app_settings-style login_history row
+  // Refresh token storage
   async saveRefreshToken(profileId, token) {
-    // Store refresh token in login_history or as a special record
-    await db.execute(
-      `INSERT INTO login_history (profile_id, ip_address, device_info, login_time)
-       VALUES (?, 'refresh_token', ?, NOW())
-       ON DUPLICATE KEY UPDATE device_info = ?, login_time = NOW()`,
-      [profileId, token, token]
-    ).catch(async () => {
-      // Fallback: store in profiles as a JSON field via address column (safe workaround)
+    try {
       await db.execute(
-        `UPDATE profiles SET address = JSON_SET(COALESCE(address, '{}'), '$.refresh_token', ?) WHERE id = ?`,
-        [token, profileId]
+        `INSERT INTO login_history (profile_id, ip_address, device_info, login_time)
+         VALUES (?, 'refresh_token', ?, NOW())`,
+        [profileId, token]
       );
-    });
+    } catch (e) {
+      console.warn('[UserRepository] saveRefreshToken log failed:', e.message);
+    }
   },
 
   async getRefreshToken(profileId) {
