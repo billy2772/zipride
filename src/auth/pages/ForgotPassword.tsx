@@ -5,6 +5,7 @@ import { LogoMark } from "@/shared/components/brand/Logo";
 import { Reveal } from "@/shared/components/kit/Reveal";
 import { supabase } from "@/lib/supabase";
 import { setupRecaptcha, sendOtpToPhone } from "@/lib/firebase/auth";
+import { apiFetch } from "@/lib/api";
 
 // SHA-256 hash using Web Crypto API
 async function hashPassword(password: string): Promise<string> {
@@ -128,7 +129,7 @@ export function ForgotPassword() {
       const passwordHash = await hashPassword(newPassword);
 
       // Call the backend reset-password endpoint directly
-      const res = await fetch("/api/auth/reset-password", {
+      const res = await apiFetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

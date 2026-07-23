@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 
 export function AdminSettings() {
   const [baseFare, setBaseFare] = useState("40");
@@ -49,7 +50,7 @@ export function AdminSettings() {
 
       if (token) {
         try {
-          await fetch("/api/v1/admin/settings/bulk", {
+          await apiFetch("/api/v1/admin/settings/bulk", {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",

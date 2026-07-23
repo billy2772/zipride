@@ -1,4 +1,5 @@
 // Custom ZipRide API Client (Replacing legacy DB queries)
+import { apiFetch } from '@/lib/api';
 
 if (typeof window !== 'undefined') {
   if (!sessionStorage.getItem('jwt_token') && localStorage.getItem('jwt_token')) {
@@ -129,7 +130,7 @@ class QueryBuilder {
         headers['Authorization'] = `Bearer ${jwtToken}`;
       }
 
-      const response = await fetch('/api/query', {
+      const response = await apiFetch('/api/query', {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -202,7 +203,7 @@ export const apiClient = {
         const jwtToken = sessionStorage.getItem('jwt_token');
         if (!jwtToken) return { data: { user: null }, error: null };
 
-        const res = await fetch('/api/auth/me', {
+        const res = await apiFetch('/api/auth/me', {
           headers: { 'Authorization': `Bearer ${jwtToken}` }
         });
         if (!res.ok) {
@@ -228,7 +229,7 @@ export const apiClient = {
         };
 
         const endpoint = payload.role === 'driver' ? '/api/auth/register/driver' : '/api/auth/register';
-        const res = await fetch(endpoint, {
+        const res = await apiFetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -253,7 +254,7 @@ export const apiClient = {
 
     async signInWithPassword(options: any) {
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await apiFetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -322,7 +323,7 @@ export const apiClient = {
               headers['Authorization'] = `Bearer ${jwtToken}`;
             }
 
-            const res = await fetch('/api/upload', {
+            const res = await apiFetch('/api/upload', {
               method: 'POST',
               headers,
               body: formData
@@ -365,7 +366,7 @@ export const apiClient = {
             try {
               if (channelName.startsWith('ride-tracking-')) {
                 const rideId = channelName.replace('ride-tracking-', '');
-                const res = await fetch('/api/query', {
+                const res = await apiFetch('/api/query', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -384,7 +385,7 @@ export const apiClient = {
                 }
               } else if (channelName.startsWith('driver-location-')) {
                 const driverId = channelName.replace('driver-location-', '');
-                const res = await fetch('/api/query', {
+                const res = await apiFetch('/api/query', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -402,7 +403,7 @@ export const apiClient = {
                   }
                 }
               } else if (channelName === 'pending-rides') {
-                const res = await fetch('/api/query', {
+                const res = await apiFetch('/api/query', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({

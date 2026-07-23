@@ -8,6 +8,7 @@ import { AdminShell } from "@/admin/layouts/AdminShell";
 import { Pill, Avatar, InteractivePhone } from "@/shared/components/kit/Primitives";
 import { Reveal } from "@/shared/components/kit/Reveal";
 import { resolveAssetUrl } from "@/shared/utils/resolveAssetUrl";
+import { apiFetch } from "@/lib/api";
 
 
 
@@ -53,7 +54,7 @@ export function DriverMgmt() {
     setLoading(true);
     try {
       const params = search ? `?search=${encodeURIComponent(search)}` : "";
-      const res = await fetch(`/api/v1/admin/drivers${params}`, {
+      const res = await apiFetch(`/api/v1/admin/drivers${params}`, {
         headers: getAuthHeaders(),
       });
 
@@ -111,7 +112,7 @@ export function DriverMgmt() {
     setActingId(d.driver_id);
     try {
       const action = d.is_banned ? "unblock" : "block";
-      const res = await fetch(`/api/v1/admin/user/${d.profile_id}/${action}`, {
+      const res = await apiFetch(`/api/v1/admin/user/${d.profile_id}/${action}`, {
         method: "POST",
         headers: getAuthHeaders(),
       });
@@ -133,7 +134,7 @@ export function DriverMgmt() {
     if (!window.confirm(`Permanently delete driver "${d.full_name}"? This cannot be undone.`)) return;
     setActingId(d.driver_id);
     try {
-      const res = await fetch(`/api/v1/admin/driver/${d.driver_id}`, {
+      const res = await apiFetch(`/api/v1/admin/driver/${d.driver_id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });
@@ -154,7 +155,7 @@ export function DriverMgmt() {
   const handleVerificationAction = async (d: any, action: "approve" | "reject") => {
     setActingId(d.driver_id);
     try {
-      const res = await fetch(`/api/v1/admin/driver/${d.driver_id}/${action}`, {
+      const res = await apiFetch(`/api/v1/admin/driver/${d.driver_id}/${action}`, {
         method: "POST",
         headers: getAuthHeaders(),
       });

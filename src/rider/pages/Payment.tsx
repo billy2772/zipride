@@ -15,6 +15,7 @@ import { Reveal } from "@/shared/components/kit/Reveal";
 import { TRIP } from "@/shared/constants/zip-data";
 import { cn } from "@/shared/utils/cn";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -98,7 +99,7 @@ export function Payment() {
 
       // Create Order on Backend
       const jwtToken = sessionStorage.getItem("jwt_token") || localStorage.getItem("jwt_token") || "";
-      const orderRes = await fetch("/api/v1/payments/order", {
+      const orderRes = await apiFetch("/api/v1/payments/order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -129,7 +130,7 @@ export function Payment() {
         handler: async (response: any) => {
           setLoading(true);
           try {
-            const verifyRes = await fetch("/api/v1/payments/verify", {
+            const verifyRes = await apiFetch("/api/v1/payments/verify", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

@@ -15,6 +15,7 @@ import {
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { Reveal } from "@/shared/components/kit/Reveal";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -136,7 +137,7 @@ export function Reports() {
       if (endDate) url += `&endDate=${endDate}`;
 
       // Call reports endpoint on the Express server via fetch
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         headers: {
           Authorization: `Bearer ${sessionStorage.getItem("jwt_token") || localStorage.getItem("jwt_token") || ""}`,
         },

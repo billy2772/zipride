@@ -3,6 +3,7 @@ import { Search, RefreshCw, Trash2, User } from "lucide-react";
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { DataTable } from "@/admin/components/DataTable";
 import { Pill, Avatar, InteractivePhone } from "@/shared/components/kit/Primitives";
+import { apiFetch } from "@/lib/api";
 
 function getAuthHeaders(): HeadersInit {
   const jwtToken = sessionStorage.getItem("jwt_token") || localStorage.getItem("jwt_token");
@@ -33,7 +34,7 @@ export function UserMgmt() {
       // Use a large limit so all users are shown
       params.set("limit", "1000");
 
-      const res = await fetch(`/api/v1/admin/users?${params.toString()}`, {
+      const res = await apiFetch(`/api/v1/admin/users?${params.toString()}`, {
         headers: getAuthHeaders(),
       });
 
@@ -94,7 +95,7 @@ export function UserMgmt() {
 
     setDeletingId(u.id);
     try {
-      const res = await fetch(`/api/v1/admin/user/${u.id}`, {
+      const res = await apiFetch(`/api/v1/admin/user/${u.id}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
       });

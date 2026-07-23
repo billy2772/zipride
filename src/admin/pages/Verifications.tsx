@@ -8,6 +8,7 @@ import { AdminShell } from "@/admin/layouts/AdminShell";
 import { Pill, Avatar, InteractivePhone } from "@/shared/components/kit/Primitives";
 import { Reveal } from "@/shared/components/kit/Reveal";
 import { resolveAssetUrl } from "@/shared/utils/resolveAssetUrl";
+import { apiFetch } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -94,7 +95,7 @@ export function Verifications() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/v1/admin/verifications", {
+      const res = await apiFetch("/api/v1/admin/verifications", {
         headers: getAuthHeaders(),
       });
 
@@ -158,7 +159,7 @@ export function Verifications() {
     setActing(id);
     try {
       const reason = rejectReasons[id];
-      const res = await fetch(`/api/v1/admin/driver/${id}/${action}`, {
+      const res = await apiFetch(`/api/v1/admin/driver/${id}/${action}`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify(reason ? { reason } : {}),

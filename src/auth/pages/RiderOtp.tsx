@@ -6,6 +6,7 @@ import { Reveal } from "@/shared/components/kit/Reveal";
 import { supabase } from "@/lib/supabase";
 import { getPendingVerification } from "@/lib/firebase/auth";
 import { motion } from "motion/react";
+import { apiFetch } from "@/lib/api";
 
 
 
@@ -85,7 +86,7 @@ export function Otp() {
             vehicleType: "Economy"
           };
 
-          const res = await fetch("/api/auth/register/driver", {
+          const res = await apiFetch("/api/auth/register/driver", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)
@@ -110,7 +111,7 @@ export function Otp() {
             referralCode: reg.referralCode
           };
 
-          const res = await fetch("/api/auth/register", {
+          const res = await apiFetch("/api/auth/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body)

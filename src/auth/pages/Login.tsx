@@ -4,6 +4,7 @@ import { AtSign, Lock, ArrowRight, ShieldCheck, Star, Eye, EyeOff } from "lucide
 import { LogoMark, Logo } from "@/shared/components/brand/Logo";
 import { Reveal } from "@/shared/components/kit/Reveal";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 
 const FEATURES = [
   { title: "Live Driver Tracking", body: "Watch your ride approach in real-time" },
@@ -138,7 +139,7 @@ export function Login() {
 
         if (existingProfile) {
           // Trigger backend direct login with wrong password to hit lockout tracker and log failed attempt
-          const res = await fetch("/api/auth/login", {
+          const res = await apiFetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username: identifier, password: "wrong_password" })
@@ -195,7 +196,7 @@ export function Login() {
             }
 
             // Hit login log route and navigate to verification screen
-            await fetch("/api/auth/login", {
+            await apiFetch("/api/auth/login", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ username: identifier, password })
@@ -231,7 +232,7 @@ export function Login() {
       }
 
       // 4. Hit server login route to write successful audit + capture JWT
-      const loginRes = await fetch("/api/auth/login", {
+      const loginRes = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: identifier, password })
