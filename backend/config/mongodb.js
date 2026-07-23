@@ -6,7 +6,10 @@ import { MongoClient } from 'mongodb';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/zipride';
+const MONGO_URI =
+  process.env.MONGODB_URI ||
+  process.env.MONGO_URI ||
+  'mongodb://localhost:27017/zipride';
 const MONGO_DB  = process.env.MONGO_DB  || 'zipride';
 
 let client = null;
