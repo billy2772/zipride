@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   FileText, Check, X, User, Phone, Mail, CreditCard,
   Calendar, RefreshCw, Image, Car, Shield, ShieldOff,
-  ChevronDown, ChevronUp, Clock, CheckCircle2, XCircle
+  ChevronDown, ChevronUp, Clock, CheckCircle2, XCircle, Download, Eye
 } from "lucide-react";
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { Pill, Avatar, InteractivePhone } from "@/shared/components/kit/Primitives";
@@ -13,8 +13,6 @@ import { apiFetch } from "@/lib/api";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-
 
 function getAuthHeaders(): HeadersInit {
   const jwtToken = sessionStorage.getItem("jwt_token") || localStorage.getItem("jwt_token");
@@ -37,7 +35,7 @@ function DocBox({
 }) {
   if (!url) {
     return (
-      <div className="flex-1 h-40 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-secondary/30 text-muted-foreground gap-2">
+      <div className="flex-1 h-44 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-secondary/30 text-muted-foreground gap-2 p-3">
         <Icon className="h-7 w-7 opacity-30" />
         <p className="text-xs font-medium">Not uploaded</p>
         <p className="text-[10px] opacity-60">{label}</p>
@@ -45,33 +43,54 @@ function DocBox({
     );
   }
   return (
-    <div
-      onClick={(e) => {
-        if (onPreview) {
-          e.preventDefault();
-          onPreview(url, label);
-        }
-      }}
-      className="flex-1 group relative overflow-hidden rounded-2xl border border-border shadow-soft min-h-[160px] cursor-zoom-in"
-    >
-      <img
-        src={url}
-        alt={label}
-        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
-        onError={(e: any) => {
-          e.target.style.display = "none";
-          e.target.nextSibling.style.display = "flex";
-        }}
-      />
+    <div className="flex-1 group relative flex flex-col overflow-hidden rounded-2xl border border-border shadow-soft bg-card">
       <div
-        style={{ display: "none" }}
-        className="w-full h-40 flex flex-col items-center justify-center bg-secondary text-muted-foreground gap-2"
+        onClick={(e) => {
+          if (onPreview) {
+            e.preventDefault();
+            onPreview(url, label);
+          }
+        }}
+        className="relative h-36 w-full overflow-hidden cursor-zoom-in bg-black/5"
       >
-        <Icon className="h-6 w-6 opacity-40" />
-        <p className="text-xs">Image unavailable</p>
+        <img
+          src={url}
+          alt={label}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e: any) => {
+            e.target.style.display = "none";
+            if (e.target.nextSibling) e.target.nextSibling.style.display = "flex";
+          }}
+        />
+        <div
+          style={{ display: "none" }}
+          className="w-full h-full flex flex-col items-center justify-center bg-secondary text-muted-foreground gap-1"
+        >
+          <Icon className="h-6 w-6 opacity-40" />
+          <p className="text-xs">Document File</p>
+        </div>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-white text-[11px] font-semibold px-2 py-1.5 flex items-center justify-between">
+          <span className="flex items-center gap-1 truncate"><Icon className="h-3 w-3" /> {label}</span>
+        </div>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent text-white text-xs text-center py-2 flex items-center justify-center gap-1">
-        <Icon className="h-3 w-3" /> {label}
+      <div className="flex items-center gap-1.5 p-2 bg-muted/30 border-t border-border">
+        <button
+          type="button"
+          onClick={() => onPreview && onPreview(url, label)}
+          className="flex-1 flex items-center justify-center gap-1 text-xs font-semibold py-1.5 px-2 rounded-xl border border-border bg-background hover:bg-secondary transition-colors"
+        >
+          <Eye className="h-3.5 w-3.5" /> View Image
+        </button>
+        <a
+          href={url}
+          download
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex-1 flex items-center justify-center gap-1 text-xs font-semibold py-1.5 px-2 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Download className="h-3.5 w-3.5" /> Download
+        </a>
       </div>
     </div>
   );

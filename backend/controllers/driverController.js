@@ -77,18 +77,43 @@ export const DriverController = {
 
   async uploadDocuments(req, res, next) {
     try {
-      const updates = {};
-      if (req.files?.licenseImage?.[0]) updates.license_image_url = req.files.licenseImage[0].cloudinaryUrl;
-      if (req.files?.rcBook?.[0]) updates.rc_book_url = req.files.rcBook[0].cloudinaryUrl;
-      if (req.files?.insurance?.[0]) updates.insurance_url = req.files.insurance[0].cloudinaryUrl;
-      if (req.files?.profilePhoto?.[0]) updates.profile_photo_url = req.files.profilePhoto[0].cloudinaryUrl;
-      if (req.files?.selfie?.[0]) updates.selfie_url = req.files.selfie[0].cloudinaryUrl;
+      const profileId = req.user.id;
+      const profilePhotoUrl = req.files?.profilePhoto?.[0]?.cloudinaryUrl || req.body.profilePhotoUrl;
+      const licenseImageUrl = req.files?.licenseImage?.[0]?.cloudinaryUrl || req.body.licenseImageUrl;
+      const drivingLicenceNumber = req.body.drivingLicenceNumber || req.body.licenseNumber;
 
-      const updated = await DriverRepository.updateDriver(req.user.id, updates);
+      const fieldsToUpdate = [];
+      const values = [];
+
+      if (profilePhotoUrl) {
+        fieldsToUpdate.push('profile_photo = ?');
+        values.push(profilePhotoUrl);
+        // Also sync user profiles profile_image
+        await db.query(`UPDATE profiles SET profile_image = ? WHERE id = ?`, [profilePhotoUrl, profileId]).catch(() => {});
+      }
+      if (licenseImageUrl) {
+        fieldsToUpdate.push('driving_licence_image = ?');
+        values.push(licenseImageUrl);
+      }
+      if (drivingLicenceNumber) {
+        fieldsToUpdate.push('driving_licence_number = ?', 'license_number = ?');
+        values.push(drivingLicenceNumber, drivingLicenceNumber);
+      }
+
+      // Reset verification status to Pending when new documents are uploaded
+      fieldsToUpdate.push("verification_status = 'Pending'", "rejection_reason = NULL", "updated_at = NOW()");
+
+      if (fieldsToUpdate.length > 0) {
+        values.push(profileId);
+        await db.query(
+          `UPDATE driver_profiles SET ${fieldsToUpdate.join(', ')} WHERE profile_id = ?`,
+          values
+        );
+      }
+
       return res.json({
         success: true,
-        message: 'Documents uploaded successfully.',
-        data: updated
+        message: 'Documents uploaded and resubmitted for admin verification successfully.'
       });
     } catch (err) {
       next(err);

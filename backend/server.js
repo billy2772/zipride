@@ -24,6 +24,7 @@ import { connectMongoDB, getMongoDB } from './config/mongodb.js';
 import { ensureMongoIndexes } from './repositories/mongoRepository.js';
 import { initializeSocket, getOnlineDriverCount } from './socket/socket.js';
 import { CronService } from './services/cronService.js';
+import { runDatabaseMigrations } from './utils/dbMigrate.js';
 
 // Route imports
 import authRoutes from './routes/authRoutes.js';
@@ -247,6 +248,9 @@ try {
   console.error(`❌ MongoDB Connection Failed: ${err.message}`);
   console.error('[MongoDB] App continues with MySQL only — MongoDB-backed features (audit logs, tracking history, notifications) will be unavailable.');
 }
+
+// Run database column migrations
+runDatabaseMigrations().catch(() => {});
 
 // Reload watcher trigger
 const PORT = process.env.PORT || 5000;

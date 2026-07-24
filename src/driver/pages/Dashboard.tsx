@@ -253,7 +253,7 @@ export function DriverDashboard() {
 
   useEffect(() => {
     const status = (driverProfile?.verification_status || "").toLowerCase();
-    if (status !== "approved" && online) {
+    if (status !== "approved" && status !== "verified" && online) {
       setOnline(false);
       localStorage.setItem("driver_online_status", "false");
     }
@@ -261,8 +261,8 @@ export function DriverDashboard() {
 
   const handleToggleOnline = () => {
     const status = (driverProfile?.verification_status || "").toLowerCase();
-    if (status !== "approved") {
-      alert(`Your account verification status is "${driverProfile?.verification_status || "Pending"}". You cannot go online until your driver credentials are approved by an administrator.`);
+    if (status !== "approved" && status !== "verified") {
+      alert(`Waiting for Admin Verification. Your account verification status is "${driverProfile?.verification_status || "Pending"}". You cannot go online or accept rides until an administrator verifies your account.`);
       return;
     }
     setOnline(!online);
@@ -270,6 +270,11 @@ export function DriverDashboard() {
 
   const handleAccept = async (rideId: string) => {
     if (!profile?.id) return;
+    const status = (driverProfile?.verification_status || "").toLowerCase();
+    if (status !== "approved" && status !== "verified") {
+      alert("Verification required. You must be verified by an admin before accepting rides.");
+      return;
+    }
     try {
       const { error } = await supabase
         .from("rides")
@@ -289,8 +294,40 @@ export function DriverDashboard() {
     }
   };
 
+  const isVerified = (driverProfile?.verification_status || "").toLowerCase() === "verified" || (driverProfile?.verification_status || "").toLowerCase() === "approved";
+  const isRejected = (driverProfile?.verification_status || "").toLowerCase() === "rejected";
+
   return (
     <DriverShell>
+      {/* Verification Status Banner */}
+      {!isVerified && (
+        <div className={cn(
+          "mb-6 rounded-2xl border p-5 text-sm shadow-soft flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+          isRejected ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        )}>
+          <div className="flex items-start gap-3">
+            <Clock className="h-6 w-6 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-base">
+                {isRejected ? "Verification Rejected" : "Waiting for Admin Verification"}
+              </p>
+              <p className="mt-1 text-xs opacity-90">
+                {isRejected
+                  ? `Reason: ${driverProfile?.rejection_reason || "Your document verification was rejected."}. Please upload new documents to resubmit.`
+                  : "Your profile photo and driving licence are currently under review by our admin team. You cannot go online or accept ride requests until verified."
+                }
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/driver/verification"
+            className="shrink-0 rounded-xl gradient-brand px-4 py-2 text-xs font-bold text-primary-foreground shadow-glow hover:scale-105 transition-transform"
+          >
+            {isRejected ? "Resubmit Documents" : "View Status"}
+          </Link>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-4 border-b border-border pb-4 mb-6">
         <div className="flex items-center gap-3">
           <Avatar
@@ -300,15 +337,18 @@ export function DriverDashboard() {
           />
           <div>
             <h1 className="text-2xl font-extrabold text-foreground">Hi, {driverName}</h1>
-            <p className="text-xs text-muted-foreground">Welcome back, let's make some trips today</p>
+            <p className="text-xs text-muted-foreground">
+              {!isVerified ? "Status: Waiting for Admin Verification" : "Welcome back, let's make some trips today"}
+            </p>
           </div>
         </div>
 
         <button
           onClick={handleToggleOnline}
+          disabled={!isVerified}
           className={cn(
             "flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-white shadow-glow transition-colors",
-            online ? "bg-success" : "bg-muted-foreground",
+            !isVerified ? "bg-muted cursor-not-allowed opacity-60" : (online ? "bg-success" : "bg-muted-foreground"),
           )}
         >
           <Power className="h-4 w-4" /> {online ? "Online" : "Offline"}

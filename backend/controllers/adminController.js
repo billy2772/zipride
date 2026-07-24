@@ -145,12 +145,16 @@ export const AdminController = {
     }
   },
 
-  // Get all driver verifications with merged MongoDB document URLs
+  // Get all driver verifications with merged document URLs
   async getDriverVerifications(req, res, next) {
     try {
       const [rows] = await db.query(
         `SELECT p.id AS profile_id, p.full_name, p.email, p.phone,
-                dp.id AS driver_id, dp.driver_code, dp.license_number, dp.verification_status, dp.created_at,
+                dp.id AS driver_id, dp.driver_code,
+                COALESCE(dp.driving_licence_number, dp.license_number) AS license_number,
+                dp.verification_status, dp.verification_date, dp.verified_by, dp.rejection_reason,
+                dp.profile_photo AS direct_profile_photo, dp.driving_licence_image AS direct_license_photo,
+                dp.created_at,
                 dd.profile_photo AS mysql_profile_photo, dd.license_photo AS mysql_license_photo,
                 v.vehicle_brand AS vehicle_make, v.vehicle_model, v.vehicle_color, v.vehicle_number AS license_plate
          FROM driver_profiles dp
@@ -170,8 +174,8 @@ export const AdminController = {
             try {
               mongoDocs = await MongoService.getDriverDocuments(row.profile_id);
             } catch (e) {}
-            const profilePhoto = mongoDocs?.profile_photo_url || row.mysql_profile_photo || null;
-            const licensePhoto = mongoDocs?.license_image_url || row.mysql_license_photo || null;
+            const profilePhoto = mongoDocs?.profile_photo_url || row.direct_profile_photo || row.mysql_profile_photo || null;
+            const licensePhoto = mongoDocs?.license_image_url || row.direct_license_photo || row.mysql_license_photo || null;
             return {
               ...row,
               profile_photo_url: profilePhoto,
@@ -230,7 +234,7 @@ export const AdminController = {
       const { DriverRepository } = await import('../repositories/driverRepository.js');
       const { default: DocumentService } = await import('../services/documentService.js');
       
-      await DriverRepository.setVerificationStatus(driverId, 'Approved');
+      await DriverRepository.setVerificationStatus(driverId, 'Verified', req.user?.id || null, null);
 
       // Fetch driver's profile_id to send notifications
       const [[dp]] = await db.query('SELECT profile_id FROM driver_profiles WHERE id = ?', [driverId]);
@@ -240,7 +244,7 @@ export const AdminController = {
           await DocumentService.updateVerificationStatus(
             dp.profile_id,
             'approved',
-            req.user.id
+            req.user?.id || 'admin'
           );
         } catch (err) {
           console.warn('[adminController] MongoDB update failed:', err.message);
@@ -248,8 +252,8 @@ export const AdminController = {
 
         await NotificationService.sendPushNotification(
           dp.profile_id,
-          'Driver Approved',
-          'Your driver account has been approved by the administrator.'
+          'Driver Verified',
+          'Your driver account has been verified by the administrator. You can now go online and accept rides!'
         );
         
         await AuditService.logAction({
@@ -258,19 +262,19 @@ export const AdminController = {
           tableName: 'driver_profiles',
           recordId: String(driverId),
           ipAddress: req.ip,
-          notes: 'Driver approved by administrator'
+          notes: 'Driver verified by administrator'
         });
       }
 
       await AuditService.logAdminAction({
-        adminId: req.user.id,
-        action: 'DRIVER_APPROVED',
+        adminId: req.user?.id || 'admin',
+        action: 'DRIVER_VERIFIED',
         affectedId: String(driverId),
         affectedTable: 'driver_profiles',
         ipAddress: req.ip,
       });
 
-      return sendSuccess(res, 'Driver approved successfully.');
+      return sendSuccess(res, 'Driver verified successfully.');
     } catch (err) {
       next(err);
     }
@@ -283,18 +287,18 @@ export const AdminController = {
       const { DriverRepository } = await import('../repositories/driverRepository.js');
       const { default: DocumentService } = await import('../services/documentService.js');
       
-      await DriverRepository.setVerificationStatus(driverId, 'Rejected');
+      const rejectionReasonVal = reason || 'Document verification failed.';
+      await DriverRepository.setVerificationStatus(driverId, 'Rejected', req.user?.id || null, rejectionReasonVal);
 
       // Fetch driver's profile_id to send notifications
       const [[dp]] = await db.query('SELECT profile_id FROM driver_profiles WHERE id = ?', [driverId]);
       if (dp && dp.profile_id) {
-        // Update MongoDB verification status
         try {
           await DocumentService.updateVerificationStatus(
             dp.profile_id,
             'rejected',
-            req.user.id,
-            reason || 'Application does not meet requirements'
+            req.user?.id || 'admin',
+            rejectionReasonVal
           );
         } catch (err) {
           console.warn('[adminController] MongoDB update failed:', err.message);
@@ -302,17 +306,16 @@ export const AdminController = {
 
         await NotificationService.sendPushNotification(
           dp.profile_id,
-          'Driver Rejected',
-          'Your driver account application was rejected. Please review details.'
+          'Driver Verification Rejected',
+          `Your driver verification was rejected: ${rejectionReasonVal}`
         );
-        
         await AuditService.logAction({
           profileId: dp.profile_id,
           action: 'Driver Rejection',
           tableName: 'driver_profiles',
           recordId: String(driverId),
           ipAddress: req.ip,
-          notes: 'Driver rejected by administrator'
+          notes: `Driver rejected by administrator: ${rejectionReasonVal}`
         });
       }
 

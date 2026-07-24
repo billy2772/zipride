@@ -385,7 +385,7 @@ export function Register() {
               {/* Conditional rendering for Driver documents uploads */}
               {role === "driver" && (
                 <div className="space-y-4 rounded-2xl bg-muted/20 p-4 border border-border">
-                  <p className="text-xs font-bold text-muted-foreground">Driver Information & Documents (Required)</p>
+                  <p className="text-xs font-bold text-muted-foreground">Driver Information & Verification Documents (Required)</p>
                   
                   {/* Driving License Number */}
                   <div>
@@ -408,38 +408,67 @@ export function Register() {
                   
                   {/* Profile Photo File Upload */}
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-                      Profile Photo
-                    </label>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-muted-foreground">
+                        Profile Photo (Required: 1 MB – 2 MB, JPG/PNG/WEBP)
+                      </label>
+                    </div>
                     <div className="flex items-center gap-3">
                       <label className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors">
                         <Upload className="h-4 w-4" /> Upload Photo
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
                           className="hidden"
-                          onChange={(e) => setProfilePhotoFile(e.target.files?.[0] || null)}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            if (f) {
+                              const minB = 1 * 1024 * 1024;
+                              const maxB = 2 * 1024 * 1024;
+                              if (f.size < minB || f.size > maxB) {
+                                alert(`Profile Photo must be between 1 MB and 2 MB. Uploaded file size: ${(f.size / (1024 * 1024)).toFixed(2)} MB`);
+                                e.target.value = "";
+                                setProfilePhotoFile(null);
+                                return;
+                              }
+                            }
+                            setProfilePhotoFile(f);
+                          }}
                         />
                       </label>
                       <span className="text-xs text-muted-foreground truncate">
-                        {profilePhotoFile ? profilePhotoFile.name : "No file selected"}
+                        {profilePhotoFile ? `${profilePhotoFile.name} (${(profilePhotoFile.size / (1024 * 1024)).toFixed(2)}MB)` : "No file selected"}
                       </span>
                     </div>
                   </div>
 
                   {/* Driving License File Upload */}
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-muted-foreground">
-                      Driving License
-                    </label>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-muted-foreground">
+                        Driving License Document (JPG, PNG, WEBP, PDF)
+                      </label>
+                    </div>
                     <div className="flex items-center gap-3">
                       <label className="flex cursor-pointer items-center gap-2 rounded-xl bg-primary/10 px-4 py-2.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors">
                         <FileText className="h-4 w-4" /> Upload License
                         <input
                           type="file"
-                          accept="image/*,application/pdf"
+                          accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
                           className="hidden"
-                          onChange={(e) => setLicenseFile(e.target.files?.[0] || null)}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            if (f) {
+                              const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
+                              if (!allowed.includes(f.type)) {
+                                alert("Invalid licence document format. Accepted formats: JPG, PNG, WEBP, PDF.");
+                                e.target.value = "";
+                                setLicenseFile(null);
+                                return;
+                              }
+                            }
+                            setLicenseFile(f);
+                          }}
                         />
                       </label>
                       <span className="text-xs text-muted-foreground truncate">

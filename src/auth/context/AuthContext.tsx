@@ -312,14 +312,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     if (activeProfile) {
-      // Check if driver account is banned
-      if (activeProfile.role === "driver" && (driverProfile as any)?.is_banned) {
-        alert("Your driver account has been banned by the administrator.");
-        signOut();
-        navigateFast("/login");
-        return;
-      }
-
       // Redirect away from auth pages if already logged in
       if (
         pathname === "/" ||

@@ -388,24 +388,6 @@ export function DriverMgmt() {
                           </>
                         )}
 
-                        {/* Ban/Unban */}
-                        <button
-                          onClick={() => handleBanToggle(d)}
-                          disabled={actingId === d.driver_id}
-                          className={cn(
-                            "flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors disabled:opacity-50",
-                            d.is_banned
-                              ? "bg-success/15 text-success hover:bg-success/25"
-                              : "bg-warning/15 text-warning hover:bg-warning/25"
-                          )}
-                        >
-                          {d.is_banned ? (
-                            <><Shield className="h-4 w-4" /> Unban Driver</>
-                          ) : (
-                            <><ShieldOff className="h-4 w-4" /> Ban Driver</>
-                          )}
-                        </button>
-
                         {/* Delete */}
                         <button
                           onClick={() => handleDelete(d)}

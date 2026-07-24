@@ -54,7 +54,8 @@ export const DriverRepository = {
   async setOnlineStatus(profileId, isOnline) {
     if (isOnline) {
       const [dp] = await db.execute(`SELECT verification_status FROM driver_profiles WHERE profile_id = ?`, [profileId]);
-      if (!dp[0] || dp[0].verification_status !== 'Approved') {
+      const status = (dp[0]?.verification_status || '').toLowerCase();
+      if (!dp[0] || (status !== 'verified' && status !== 'approved')) {
         throw new Error('Verification is pending or rejected. Driver cannot go online.');
       }
     }
@@ -120,8 +121,7 @@ export const DriverRepository = {
       JOIN profiles p ON dp.profile_id = p.id
       LEFT JOIN vehicles v ON dp.id = v.driver_id AND v.is_active = 1
       WHERE dp.is_online = 1
-        AND dp.is_banned = 0
-        AND dp.verification_status = 'Approved'
+        AND LOWER(dp.verification_status) IN ('verified', 'approved')
         AND p.account_status = 'active'`;
 
     const params = [latitude, longitude, latitude];
@@ -141,18 +141,22 @@ export const DriverRepository = {
     return rows;
   },
 
-  async setVerificationStatus(driverId, status) {
+  async setVerificationStatus(driverId, status, verifiedBy = null, rejectionReason = null) {
     await db.execute(
-      `UPDATE driver_profiles SET verification_status = ?, updated_at = NOW() WHERE id = ?`,
-      [status, driverId]
+      `UPDATE driver_profiles 
+       SET verification_status = ?, 
+           verification_date = NOW(), 
+           verified_by = ?, 
+           rejection_reason = ?, 
+           updated_at = NOW() 
+       WHERE id = ?`,
+      [status, verifiedBy, rejectionReason, driverId]
     );
   },
 
   async setBanStatus(driverId, banned) {
-    await db.execute(
-      `UPDATE driver_profiles SET is_banned = ?, updated_at = NOW() WHERE id = ?`,
-      [banned ? 1 : 0, driverId]
-    );
+    // Deprecated - Ban Driver option completely removed
+    return true;
   },
 
   async incrementRideStats(driverId, completed = false, cancelled = false) {

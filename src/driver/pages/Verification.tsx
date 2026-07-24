@@ -209,6 +209,14 @@ export function Verification() {
 
           {!loading && !error && (
             <div className="mt-6 space-y-5 text-left">
+              {isRejected && (
+                <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-destructive">
+                  <p className="font-extrabold text-sm uppercase tracking-wider">Rejection Reason</p>
+                  <p className="mt-1 text-sm">{driverProfile?.rejection_reason || "Your document verification was rejected by administrator."}</p>
+                  <p className="mt-2 text-xs font-semibold">Please upload updated documents below and click Resubmit for Verification.</p>
+                </div>
+              )}
+
               <div className="rounded-2xl border border-border bg-secondary/20 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -239,6 +247,94 @@ export function Verification() {
                   <DocCard url={verification.licenseImageUrl} label="Driving License" icon={FileText} />
                 </div>
               </div>
+
+              {/* Resubmit form if rejected */}
+              {isRejected && (
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 space-y-4">
+                  <p className="font-extrabold text-sm text-primary">Resubmit Verification Documents</p>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1">Driving Licence Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. TN7220200012345"
+                      defaultValue={verification.licenseNumber}
+                      id="resubmitLicenceNum"
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none"
+                    />
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground mb-1">New Profile Photo (1 MB – 2 MB, JPG/PNG/WEBP)</label>
+                      <input
+                        type="file"
+                        id="resubmitProfilePhoto"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        className="text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground mb-1">New Driving Licence (JPG/PNG/WEBP/PDF)</label>
+                      <input
+                        type="file"
+                        id="resubmitLicenceDoc"
+                        accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const photoEl = document.getElementById("resubmitProfilePhoto") as HTMLInputElement;
+                        const licenceEl = document.getElementById("resubmitLicenceDoc") as HTMLInputElement;
+                        const numEl = document.getElementById("resubmitLicenceNum") as HTMLInputElement;
+
+                        const photoFile = photoEl?.files?.[0];
+                        const licenceFile = licenceEl?.files?.[0];
+                        const licenceNum = numEl?.value;
+
+                        if (photoFile) {
+                          const minB = 1 * 1024 * 1024;
+                          const maxB = 2 * 1024 * 1024;
+                          if (photoFile.size < minB || photoFile.size > maxB) {
+                            alert(`Profile photo must be between 1 MB and 2 MB. Size: ${(photoFile.size / (1024 * 1024)).toFixed(2)} MB`);
+                            return;
+                          }
+                        }
+
+                        const formData = new FormData();
+                        if (photoFile) formData.append("profilePhoto", photoFile);
+                        if (licenceFile) formData.append("licenseImage", licenceFile);
+                        if (licenceNum) formData.append("drivingLicenceNumber", licenceNum);
+
+                        const token = sessionStorage.getItem("jwt_token") || localStorage.getItem("jwt_token");
+                        const res = await fetch("/api/driver/upload-docs", {
+                          method: "POST",
+                          headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          body: formData,
+                        });
+
+                        const json = await res.json();
+                        if (res.ok) {
+                          alert("Documents resubmitted successfully! Waiting for admin verification.");
+                          window.location.reload();
+                        } else {
+                          alert("Resubmission failed: " + (json.message || "Unknown error"));
+                        }
+                      } catch (err: any) {
+                        alert("Failed to resubmit: " + err.message);
+                      }
+                    }}
+                    className="w-full rounded-xl gradient-brand py-3 font-bold text-primary-foreground shadow-glow hover:scale-[1.01] transition-transform"
+                  >
+                    Resubmit Documents
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

@@ -161,17 +161,8 @@ export const AuthController = {
       const bcryptHash = await bcrypt.hash(rawPassword, 10);
       const driverId = crypto.randomUUID();
 
-      // Check if auto-approve is enabled in platform settings
-      let autoApproveEnabled = false;
-      try {
-        const [settingRows] = await dbQuery(`SELECT setting_value FROM app_settings WHERE setting_key = 'auto_approve' LIMIT 1`);
-        if (settingRows && settingRows.length > 0) {
-          autoApproveEnabled = settingRows[0].setting_value === 'true';
-        }
-      } catch (e) {
-        console.warn('[authController] Could not read auto_approve setting:', e.message);
-      }
-      const initialVerificationStatus = autoApproveEnabled ? 'Approved' : 'Pending';
+      // Driver accounts require manual admin verification
+      const initialVerificationStatus = 'Pending';
 
       // Create base user profile
       const referralCode = `ZR${username.toUpperCase().substring(0, 4)}${Math.floor(1000 + Math.random() * 9000)}`;
@@ -181,12 +172,16 @@ export const AuthController = {
         [driverId, email, fullName, phone, dob || null, gender || null, bcryptHash, username, referralCode]
       );
 
-      // Create driver profile with auto-approve status if enabled
+      // Create driver profile with pending status
       const driverCode = 'DRV-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+      const profilePhotoVal = req.files?.profilePhoto?.[0]?.cloudinaryUrl || req.body.profilePhotoUrl || null;
+      const licenseImageVal = req.files?.licenseImage?.[0]?.cloudinaryUrl || req.body.licenseImageUrl || null;
+      const licenseNumVal   = licenseNumber || req.body.drivingLicenceNumber || null;
+
       const [dpResult] = await dbQuery(
-        `INSERT INTO driver_profiles (profile_id, driver_code, email, license_number, license_expiry, total_rides, completed_rides, cancelled_rides, total_earnings, rating, verification_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0.00, 5.00, ?, NOW(), NOW())`,
-        [driverId, driverCode, email, licenseNumber, licenseExpiry || null, initialVerificationStatus]
+        `INSERT INTO driver_profiles (profile_id, driver_code, email, license_number, driving_licence_number, profile_photo, driving_licence_image, license_expiry, total_rides, completed_rides, cancelled_rides, total_earnings, rating, verification_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0.00, 5.00, ?, NOW(), NOW())`,
+        [driverId, driverCode, email, licenseNumVal, licenseNumVal, profilePhotoVal, licenseImageVal, licenseExpiry || null, initialVerificationStatus]
       );
       const driverIntId = dpResult.insertId;
 
@@ -227,7 +222,6 @@ export const AuthController = {
       );
 
       // Sync profile_image in profiles table with the driver's profile photo
-      const profilePhotoVal = req.files?.profilePhoto?.[0]?.cloudinaryUrl || req.body.profilePhotoUrl;
       if (profilePhotoVal) {
         await dbQuery('UPDATE profiles SET profile_image = ? WHERE id = ?', [profilePhotoVal, driverId]);
       }
@@ -235,7 +229,6 @@ export const AuthController = {
       // Save driver documents to MongoDB
       try {
         const { default: DocumentService } = await import('../services/documentService.js');
-        const profilePhotoVal = req.files?.profilePhoto?.[0]?.cloudinaryUrl || req.body.profilePhotoUrl;
         const licenseImageVal = req.files?.licenseImage?.[0]?.cloudinaryUrl || req.body.licenseImageUrl;
 
         await DocumentService.createDriverDocument(
@@ -282,9 +275,7 @@ export const AuthController = {
 
       return res.status(201).json({
         success: true,
-        message: autoApproveEnabled
-          ? 'Driver registered and automatically approved. You can start driving immediately!'
-          : 'Driver registered successfully. Profile is pending admin approval.',
+        message: 'Driver registered successfully. Profile is pending admin approval.',
         data: {
           token,
           refreshToken,
