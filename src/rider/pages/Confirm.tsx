@@ -153,6 +153,26 @@ export function Confirm() {
     }
     setBooking(true);
     try {
+      // Prevent duplicate active rides
+      const { data: existingActive } = await (supabase as any)
+        .from("rides")
+        .select("id, status")
+        .eq("rider_id", profile.id)
+        .in("status", [
+          "searching", "pending", "Searching",
+          "driver assigned", "assigned", "driver accepted", "accepted", "Driver Assigned", "Driver Accepted",
+          "driver arrived", "arriving", "ride started", "in_progress", "Driver Arrived", "Ride Started"
+        ])
+        .limit(1);
+
+      if (existingActive && existingActive.length > 0) {
+        alert("You already have an active ride in progress! Please complete your current ride before booking a new one.");
+        localStorage.setItem("active_ride_id", existingActive[0].id);
+        navigate({ to: "/tracking", replace: true });
+        setBooking(false);
+        return;
+      }
+
       console.log("[Confirm Ride Page] Creating ride request for rider:", profile.id);
       
       const rideOtp = Math.floor(1000 + Math.random() * 9000).toString();

@@ -47,7 +47,10 @@ export function Dashboard() {
   // Pricing configuration
   const [pricingSettings, setPricingSettings] = useState({ baseFare: 40, perKmRate: 12, maintenanceMode: false });
 
-  // Auto-check for any active/ongoing ride on mount or login
+  // Active ride state
+  const [activeRide, setActiveRide] = useState<any>(null);
+
+  // Check for any active/ongoing ride on mount
   useEffect(() => {
     if (!profile?.id) return;
     const riderId = profile.id;
@@ -55,7 +58,7 @@ export function Dashboard() {
       try {
         const { data: activeRides } = await (supabase as any)
           .from("rides")
-          .select("id, status, payment_status")
+          .select("id, status, pickup_address, dropoff_address, fare, created_at, booking_time")
           .eq("rider_id", riderId)
           .in("status", [
             "searching", "pending", "Searching",
@@ -67,21 +70,10 @@ export function Dashboard() {
 
         if (activeRides && activeRides.length > 0) {
           const ride = activeRides[0];
-          const s = (ride.status || "").toLowerCase();
-          
-          if (s === "searching" || s === "pending") {
-            localStorage.setItem("active_ride_id", ride.id);
-            navigate({ to: "/searching", replace: true });
-          } else if (s === "driver assigned" || s === "assigned" || s === "driver accepted" || s === "accepted") {
-            localStorage.setItem("active_ride_id", ride.id);
-            navigate({ to: "/driver-assigned", replace: true });
-          } else if (s === "driver arrived" || s === "arriving" || s === "ride started" || s === "in_progress") {
-            localStorage.setItem("active_ride_id", ride.id);
-            navigate({ to: "/tracking", replace: true });
-          } else {
-            localStorage.removeItem("active_ride_id");
-          }
+          setActiveRide(ride);
+          localStorage.setItem("active_ride_id", ride.id);
         } else {
+          setActiveRide(null);
           localStorage.removeItem("active_ride_id");
         }
       } catch (err) {
@@ -89,7 +81,9 @@ export function Dashboard() {
       }
     }
     checkActiveRide();
-  }, [profile?.id, navigate]);
+    const interval = setInterval(checkActiveRide, 3000);
+    return () => clearInterval(interval);
+  }, [profile?.id]);
 
   useEffect(() => {
     async function loadPricing() {
@@ -114,6 +108,10 @@ export function Dashboard() {
   }, []);
 
   const handleBookRide = () => {
+    if (activeRide) {
+      alert("You already have an active ride in progress! Please complete your current ride before booking a new one.");
+      return;
+    }
     if (pricingSettings.maintenanceMode) {
       alert("Online booking is temporarily disabled for maintenance. Please try again later.");
       return;
@@ -195,13 +193,34 @@ export function Dashboard() {
                 <h2 className="text-lg font-extrabold">Book Your Ride</h2>
                 <p className="text-xs text-muted-foreground mb-4">Set your route on the map to get started</p>
                 
-                {pricingSettings.maintenanceMode ? (
+                {activeRide ? (
+                  <div className="mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs">
+                    <div className="flex items-center gap-2 font-bold text-amber-500 mb-1">
+                      <Zap className="h-4 w-4 animate-pulse" />
+                      Active Ride In Progress
+                    </div>
+                    <p className="text-foreground/90 font-medium mb-3">
+                      You currently have an active ride running. Please complete your current ride before booking a new one.
+                    </p>
+                    <button
+                      onClick={() => {
+                        const s = (activeRide.status || "").toLowerCase();
+                        if (s === "searching" || s === "pending") navigate({ to: "/searching" });
+                        else if (s === "driver assigned" || s === "assigned" || s === "driver accepted" || s === "accepted") navigate({ to: "/driver-assigned" });
+                        else navigate({ to: "/tracking" });
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl gradient-brand py-2.5 px-3 text-xs font-bold text-primary-foreground shadow-soft hover:scale-[1.01] transition-transform"
+                    >
+                      Track Active Ride Map <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : pricingSettings.maintenanceMode ? (
                   <div className="mb-4 rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-xs font-semibold text-destructive">
                     ⚠️ ZipRide is currently under maintenance. Online booking is temporarily paused.
                   </div>
                 ) : null}
                 
-                <div className="space-y-3">
+                <div className="space-y-3 opacity-100 disabled:opacity-50">
                   <div>
                     <label className="text-[11px] font-bold uppercase text-muted-foreground block mb-1.5">
                       Pickup location
@@ -211,6 +230,7 @@ export function Dashboard() {
                       onChange={setPickupVal}
                       placeholder="Enter pickup location"
                       onSelect={(address, lat, lon) => {
+                        if (activeRide) return;
                         setPickupVal(address);
                         setPickupCoords([lat, lon]);
                       }}
@@ -227,6 +247,7 @@ export function Dashboard() {
                       onChange={setDropoffVal}
                       placeholder="Enter drop location"
                       onSelect={(address, lat, lon) => {
+                        if (activeRide) return;
                         setDropoffVal(address);
                         setDropoffCoords([lat, lon]);
                       }}
@@ -236,7 +257,7 @@ export function Dashboard() {
                 </div>
 
                 {/* Estimates info overlay */}
-                {pickupCoords && dropoffCoords && (
+                {pickupCoords && dropoffCoords && !activeRide && (
                   <div className="mt-5 flex items-center justify-around rounded-2xl bg-secondary px-4 py-3.5 text-sm">
                     <div>
                       <p className="text-[11px] text-muted-foreground">Est. Time</p>
@@ -253,10 +274,10 @@ export function Dashboard() {
 
               <button
                 onClick={handleBookRide}
-                disabled={pricingSettings.maintenanceMode}
+                disabled={Boolean(activeRide) || pricingSettings.maintenanceMode}
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl gradient-brand py-4 font-bold text-primary-foreground shadow-glow transition-transform hover:scale-[1.01] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {pricingSettings.maintenanceMode ? "Under Maintenance" : "Book Ride"} <ArrowRight className="h-5 w-5" />
+                {activeRide ? "Ride in Progress" : pricingSettings.maintenanceMode ? "Under Maintenance" : "Book Ride"} <ArrowRight className="h-5 w-5" />
               </button>
             </div>
           </Reveal>

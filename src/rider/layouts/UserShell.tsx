@@ -5,6 +5,7 @@ import { Logo } from "@/shared/components/brand/Logo";
 import { Avatar } from "@/shared/components/kit/Primitives";
 import { useAuth } from "@/auth/hooks/useAuth";
 import { cn } from "@/shared/utils/cn";
+import { ActiveRideBanner } from "@/rider/components/ActiveRideBanner";
 
 const NAV = [
   { label: "Home", to: "/dashboard" },
@@ -55,6 +56,7 @@ export function UserTopNav() {
           </Link>
         </div>
       </div>
+      <ActiveRideBanner />
     </header>
   );
 }

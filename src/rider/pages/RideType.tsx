@@ -1,22 +1,51 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Users, Clock, Check, ArrowRight, Circle, MapPin } from "lucide-react";
 import { UserShell } from "@/rider/layouts/UserShell";
 import { Reveal } from "@/shared/components/kit/Reveal";
 import { VEHICLES, TRIP } from "@/shared/constants/zip-data";
 import { cn } from "@/shared/utils/cn";
 import { motion } from "motion/react";
-
-
+import { useAuth } from "@/auth/hooks/useAuth";
+import { supabase } from "@/lib/supabase";
 
 export function RideType() {
   const [sel, setSel] = useState("taxi");
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const chosen = VEHICLES.find((v) => v.id === sel)!;
   const fareVal = parseInt(localStorage.getItem("booking_fare") || "198");
   const pickupVal = localStorage.getItem("booking_pickup") || TRIP.from;
   const dropoffVal = localStorage.getItem("booking_dropoff") || TRIP.to;
   const distanceVal = localStorage.getItem("booking_distance") || "4.2";
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    const riderId = profile.id;
+    async function checkActiveRide() {
+      try {
+        const { data: existingActive } = await (supabase as any)
+          .from("rides")
+          .select("id, status")
+          .eq("rider_id", riderId)
+          .in("status", [
+            "searching", "pending", "Searching",
+            "driver assigned", "assigned", "driver accepted", "accepted", "Driver Assigned", "Driver Accepted",
+            "driver arrived", "arriving", "ride started", "in_progress", "Driver Arrived", "Ride Started"
+          ])
+          .limit(1);
+
+        if (existingActive && existingActive.length > 0) {
+          alert("You already have an active ride in progress! Complete your current ride before booking a new one.");
+          localStorage.setItem("active_ride_id", existingActive[0].id);
+          navigate({ to: "/tracking", replace: true });
+        }
+      } catch (err) {
+        console.error("Active ride check failed in RideType:", err);
+      }
+    }
+    checkActiveRide();
+  }, [profile?.id, navigate]);
 
   return (
     <UserShell width="narrow">
