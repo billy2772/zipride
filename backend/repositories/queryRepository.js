@@ -1052,9 +1052,10 @@ export const QueryRepository = {
       await db.query(sql, cleanParams(queryParams));
 
       return { data: { message: 'Delete complete' }, error: null };
-    } catch (err) {
-      console.error(`[QueryRepository] Execution failed for table "${params?.table}":`, err.message);
-      return { data: null, error: { message: err.message || 'Database query execution failed.' } };
     }
+  } catch (err) {
+    console.error(`[QueryRepository] Execution failed for table "${params?.table}":`, err.message);
+    return { data: null, error: { message: err.message || 'Database query execution failed.' } };
   }
+}
 };
