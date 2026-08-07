@@ -77,6 +77,9 @@ export function Otp() {
 
         if (reg.role === "driver" && reg.driverDetails) {
           const details = reg.driverDetails;
+          const cleanPhoto = details.profilePhoto && !details.profilePhoto.startsWith("data:") && details.profilePhoto.length < 1000 ? details.profilePhoto : `/uploads/profile_${Date.now()}.png`;
+          const cleanLicense = details.licenseImage && !details.licenseImage.startsWith("data:") && details.licenseImage.length < 1000 ? details.licenseImage : `/uploads/license_${Date.now()}.png`;
+
           const body = {
             email: reg.email,
             passwordHash: passwordHash,
@@ -87,8 +90,8 @@ export function Otp() {
             username: reg.username,
             licenseNumber: details.licenseNumber,
             licenseExpiry: details.licenseExpiry,
-            profilePhotoUrl: details.profilePhoto,
-            licenseImageUrl: details.licenseImage,
+            profilePhotoUrl: cleanPhoto,
+            licenseImageUrl: cleanLicense,
             vehicleMake: details.vehicleMake || "Toyota",
             vehicleModel: details.vehicleModel || "Corolla",
             vehicleYear: details.vehicleYear || 2022,
@@ -179,7 +182,10 @@ export function Otp() {
     } catch (err: any) {
       setIsError(true);
       setTimeout(() => setIsError(false), 500);
-      alert("Verification Failed: " + err.message);
+      const errMsg = err.message?.includes("request entity too large")
+        ? "Registration payload too large. Please retry registration."
+        : err.message || "An unexpected verification error occurred.";
+      alert("Verification Failed: " + errMsg);
       setLoading(false);
     }
   };

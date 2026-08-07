@@ -163,8 +163,8 @@ export function Register() {
           gender: gender || null,
           referralCode: referralCode || null,
           driverDetails: role === "driver" ? {
-            profilePhoto: profilePhotoUrl,
-            licenseImage: licenseImageUrl,
+            profilePhoto: profilePhotoUrl && !profilePhotoUrl.startsWith("data:") && profilePhotoUrl.length < 1000 ? profilePhotoUrl : `/uploads/profile_${Date.now()}.png`,
+            licenseImage: licenseImageUrl && !licenseImageUrl.startsWith("data:") && licenseImageUrl.length < 1000 ? licenseImageUrl : `/uploads/license_${Date.now()}.png`,
             licenseNumber: licenseNumber.trim() || ("DRV-LIC-" + Date.now().toString().slice(-8)),
             licenseExpiry: new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             vehicleMake: vehicleMake.trim() || "Toyota",
