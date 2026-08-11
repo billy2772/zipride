@@ -15,9 +15,12 @@ document.post('/upload', async (c) => {
       return c.json({ success: false, message: 'No file provided' }, 400);
     }
 
-    // Direct fetch upload to Cloudinary signed/unsigned preset REST endpoint
-    const cloudName = 'zipride-cdn';
-    const uploadPreset = 'zipride_docs';
+    const cloudName = c.env.CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = c.env.CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      return c.json({ success: false, message: 'Cloudinary environment bindings (CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET) missing.' }, 500);
+    }
 
     const uploadForm = new FormData();
     uploadForm.append('file', file);

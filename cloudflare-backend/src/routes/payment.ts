@@ -7,8 +7,12 @@ const payment = new Hono<{ Bindings: Env }>();
 payment.post('/create-order', async (c) => {
   try {
     const { amount, currency = 'INR', ride_id } = await c.req.json();
-    const keyId = c.env.JWT_SECRET || 'rzp_test_placeholder';
-    const keySecret = 'rzp_secret_placeholder';
+    const keyId = c.env.RAZORPAY_KEY_ID;
+    const keySecret = c.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      return c.json({ success: false, message: 'Razorpay credentials (RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET) missing in worker environment.' }, 500);
+    }
 
     if (!amount) {
       return c.json({ success: false, message: 'Amount is required' }, 400);

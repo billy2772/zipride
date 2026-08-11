@@ -25,7 +25,10 @@ auth.post('/login', async (c) => {
     }
 
     const user: any = rows[0];
-    const secret = c.env.JWT_SECRET || 'zipride-production-super-secret-jwt-key-2025!@#$';
+    const secret = c.env.JWT_SECRET;
+    if (!secret) {
+      return c.json({ success: false, message: 'JWT_SECRET environment binding missing.' }, 500);
+    }
 
     const token = jwt.sign(
       {
@@ -65,7 +68,10 @@ auth.get('/me', async (c) => {
   }
 
   const token = authHeader.substring(7);
-  const secret = c.env.JWT_SECRET || 'zipride-production-super-secret-jwt-key-2025!@#$';
+  const secret = c.env.JWT_SECRET;
+  if (!secret) {
+    return c.json({ success: false, message: 'JWT_SECRET environment binding missing.' }, 500);
+  }
 
   try {
     const decoded: any = jwt.verify(token, secret);

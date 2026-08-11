@@ -7,13 +7,25 @@ export interface Env {
   TIDB_PASSWORD?: string;
   TIDB_DATABASE?: string;
   JWT_SECRET?: string;
+  RAZORPAY_KEY_ID?: string;
+  RAZORPAY_KEY_SECRET?: string;
+  CLOUDINARY_CLOUD_NAME?: string;
+  CLOUDINARY_UPLOAD_PRESET?: string;
+  MONGO_ATLAS_URL?: string;
+  MONGO_ATLAS_API_KEY?: string;
+  MONGO_CLUSTER_NAME?: string;
+  MONGO_DATABASE?: string;
 }
 
 export function getTiDBConnection(env: Env) {
-  const host = env.TIDB_HOST || 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com';
-  const user = env.TIDB_USER || 'cBAXK2TmpioAcwS.root';
-  const password = env.TIDB_PASSWORD || '9B7vqd4Ze5YvGkUV';
+  const host = env.TIDB_HOST;
+  const user = env.TIDB_USER;
+  const password = env.TIDB_PASSWORD;
   const database = env.TIDB_DATABASE || 'zipride';
+
+  if (!host || !user || !password) {
+    throw new Error('TiDB credentials (TIDB_HOST, TIDB_USER, TIDB_PASSWORD) must be provided in environment bindings.');
+  }
 
   const connectionString = env.DATABASE_URL || `mysql://${user}:${password}@${host}:4000/${database}`;
 

@@ -7,10 +7,6 @@
     "nodejs_compat"
   ],
   "vars": {
-    "NODE_ENV": "production",
-    "TIDB_HOST": "gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
-    "TIDB_PORT": "4000",
-    "TIDB_USER": "cBAXK2TmpioAcwS.root",
-    "TIDB_DATABASE": "zipride"
+    "NODE_ENV": "production"
   }
 }
