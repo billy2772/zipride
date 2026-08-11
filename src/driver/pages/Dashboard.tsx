@@ -272,48 +272,59 @@ export function DriverDashboard() {
   const loadDashboardData = async () => {
     if (!profile?.id) return;
     try {
-      // 1. Fetch nearby searching requests (only if driver is online)
-      if (online) {
-        const { data: rideRequests } = await supabase
-          .from("rides")
-          .select(`
-            id,
-            pickup_address,
-            dropoff_address,
-            fare,
-            distance,
-            rider:profiles!rides_rider_id_fkey(full_name)
-          `)
-          .eq("status", "searching")
-          .order("created_at", { ascending: false })
-          .limit(3);
-
-        if (rideRequests) {
-          setRequests(
-            rideRequests.map((r: any) => ({
-              id: r.id,
-              rider: r.rider?.full_name || "Passenger",
-              from: r.pickup_address,
-              to: r.dropoff_address,
-              fare: r.fare,
-              km: `${r.distance} km`,
-              pickupAway: "1.2 km",
-              pay: "UPI",
-            }))
-          );
-        }
-      } else {
-        setRequests([]);
-      }
-
-      // 2. Fetch driver stats for today
       const todayStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-      const { data: completedRides } = await supabase
+
+      const rideRequestsPromise = online
+        ? supabase
+            .from("rides")
+            .select(`
+              id,
+              pickup_address,
+              dropoff_address,
+              fare,
+              distance,
+              rider:profiles!rides_rider_id_fkey(full_name)
+            `)
+            .eq("status", "searching")
+            .order("created_at", { ascending: false })
+            .limit(3)
+        : Promise.resolve({ data: [] });
+
+      const completedRidesPromise = supabase
         .from("rides")
         .select("fare")
         .eq("driver_id", profile.id)
         .eq("status", "completed")
         .gte("created_at", `${todayStr}T00:00:00.000Z`);
+
+      const dProfPromise = supabase
+        .from("driver_profiles")
+        .select("rating, id")
+        .eq("profile_id", profile.id)
+        .maybeSingle();
+
+      const [{ data: rideRequests }, { data: completedRides }, { data: dProf }] = await Promise.all([
+        rideRequestsPromise,
+        completedRidesPromise,
+        dProfPromise,
+      ]);
+
+      if (rideRequests) {
+        setRequests(
+          rideRequests.map((r: any) => ({
+            id: r.id,
+            rider: r.rider?.full_name || "Passenger",
+            from: r.pickup_address,
+            to: r.dropoff_address,
+            fare: r.fare,
+            km: `${r.distance} km`,
+            pickupAway: "1.2 km",
+            pay: "UPI",
+          }))
+        );
+      } else {
+        setRequests([]);
+      }
 
       if (completedRides) {
         const earnings = completedRides.reduce((sum: number, r: any) => sum + Number(r.fare || 0), 0);
@@ -322,13 +333,6 @@ export function DriverDashboard() {
           trips: completedRides.length,
         });
       }
-
-      // 3. Fetch latest driver profile rating dynamically
-      const { data: dProf } = await supabase
-        .from("driver_profiles")
-        .select("rating, id")
-        .eq("profile_id", profile.id)
-        .maybeSingle();
 
       if (dProf) {
         setLiveRating(dProf.rating);

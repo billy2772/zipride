@@ -56,79 +56,32 @@ export function AdminDashboard() {
   useEffect(() => {
     async function loadAdminData() {
       try {
-        // Counts
-        const { count: userCount } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "rider");
-        const { count: driverApproved } = await supabase.from("driver_profiles").select("*", { count: "exact", head: true }).eq("verification_status", "approved");
-        const { count: driverOnline } = await supabase.from("driver_profiles").select("*", { count: "exact", head: true }).eq("status", "online");
-        const { count: pendingVerif } = await supabase.from("driver_profiles").select("*", { count: "exact", head: true }).eq("verification_status", "pending");
-        const { count: activeRides } = await supabase.from("rides").select("*", { count: "exact", head: true }).in("status", ["searching", "accepted", "arriving", "in_progress"]);
-        const { count: pendingPay } = await supabase.from("rides").select("*", { count: "exact", head: true }).eq("payment_status", "Pending").eq("status", "completed");
+        const res = await apiFetch("/api/admin/dashboard/stats");
+        const json = await res.json();
+        const d = json?.data || {};
 
-        // Revenue from completed rides
-        const { data: completedRides } = await supabase.from("rides").select("fare, created_at").eq("status", "completed");
-        const totalRevenue = completedRides?.reduce((s: number, r: any) => s + Number(r.fare || 0), 0) || 0;
-
-        // Today's rides & revenue
-        const today = new Date().toISOString().split("T")[0];
-        const { data: todayRideData } = await supabase.from("rides").select("fare, created_at, status").gte("created_at", `${today}T00:00:00`);
-        const todayRides = todayRideData?.length || 0;
-        const todayRevenue = todayRideData?.filter((r: any) => r.status === "completed").reduce((s: number, r: any) => s + Number(r.fare || 0), 0) || 0;
-        const completedToday = todayRideData?.filter((r: any) => r.status === "completed").length || 0;
-        const cancelledToday = todayRideData?.filter((r: any) => r.status === "cancelled").length || 0;
-
-        // Wallet balance (sum all wallets)
-        const { data: wallets } = await supabase.from("wallets").select("balance");
-        const walletTotal = wallets?.reduce((s: number, w: any) => s + Number(w.balance || 0), 0) || 0;
-
-        // Active riders (rode in last 30 days)
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: activeRiderData } = await supabase.from("rides").select("rider_id").gte("created_at", thirtyDaysAgo);
-        const activeRiders = new Set(activeRiderData?.map((r: any) => r.rider_id)).size;
-
-        // Avg driver rating
-        const { data: driverRatings } = await supabase.from("driver_profiles").select("rating").eq("verification_status", "approved");
-        const avgRating = driverRatings && driverRatings.length > 0
-          ? driverRatings.reduce((s: number, d: any) => s + Number(d.rating || 5), 0) / driverRatings.length
-          : 0;
-
-        // Top 5 drivers by completed rides
-        const { data: topDriversData } = await supabase.from("driver_profiles")
-          .select("rating, profile:profiles(full_name)")
-          .eq("verification_status", "approved")
-          .order("rating", { ascending: false })
-          .limit(5);
-        const topDrivers = topDriversData?.map((d: any) => ({
-          name: d.profile?.full_name || "Unknown",
-          rating: d.rating || 5,
-        })) || [];
-
-        // Top 5 riders
-        const { data: topRidersData } = await supabase.from("profiles")
-          .select("full_name, id")
-          .eq("role", "rider")
-          .limit(5);
-        const topRiders = topRidersData?.map((r: any) => ({ name: r.full_name || "Unknown" })) || [];
-
-        setStats({
-          totalUsers: userCount || 0,
-          totalDrivers: driverApproved || 0,
-          driversOnline: driverOnline || 0,
-          driversOffline: Math.max(0, (driverApproved || 0) - (driverOnline || 0)),
-          pendingDriverApprovals: pendingVerif || 0,
-          totalRides: completedRides?.length || 0,
-          todayRides,
-          completedToday,
-          cancelledToday,
-          activeRides: activeRides || 0,
-          pendingPayments: pendingPay || 0,
-          totalRevenue,
-          todayRevenue,
-          platformWalletBalance: walletTotal,
-          averageDriverRating: avgRating,
-          activeRiders,
-          topDrivers,
-          topRiders,
-        });
+        if (json?.success && d) {
+          setStats({
+            totalUsers: Number(d.totalRiders || 0),
+            totalDrivers: Number(d.totalDrivers || 0),
+            driversOnline: Number(d.driversOnline || 0),
+            driversOffline: Number(d.driversOffline || 0),
+            pendingDriverApprovals: Number(d.pendingDriverApprovals || 0),
+            totalRides: Number(d.totalRides || 0),
+            todayRides: Number(d.todayRides || 0),
+            completedToday: Number(d.completedToday || 0),
+            cancelledToday: Number(d.cancelledToday || 0),
+            activeRides: Number(d.activeRides || 0),
+            pendingPayments: Number(d.pendingPayments || 0),
+            totalRevenue: Number(d.totalRevenue || 0),
+            todayRevenue: Number(d.todayRevenue || 0),
+            platformWalletBalance: Number(d.platformWalletBalance || 0),
+            averageDriverRating: Number(d.averageDriverRating || 5.0),
+            activeRiders: Number(d.activeRiders || 0),
+            topDrivers: d.topDrivers || [],
+            topRiders: d.topRiders || [],
+          });
+        }
 
         // Revenue trend (last 6 months)
         const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
