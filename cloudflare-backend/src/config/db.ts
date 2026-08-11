@@ -2,6 +2,10 @@ import { connect } from '@tidbcloud/serverless';
 
 export interface Env {
   DATABASE_URL?: string;
+  MYSQL_HOST?: string;
+  MYSQL_USER?: string;
+  MYSQL_PASSWORD?: string;
+  MYSQL_DATABASE?: string;
   TIDB_HOST?: string;
   TIDB_USER?: string;
   TIDB_PASSWORD?: string;
@@ -11,6 +15,8 @@ export interface Env {
   RAZORPAY_KEY_SECRET?: string;
   CLOUDINARY_CLOUD_NAME?: string;
   CLOUDINARY_UPLOAD_PRESET?: string;
+  CLOUDINARY_API_KEY?: string;
+  CLOUDINARY_API_SECRET?: string;
   MONGO_ATLAS_URL?: string;
   MONGO_ATLAS_API_KEY?: string;
   MONGO_CLUSTER_NAME?: string;
@@ -18,13 +24,13 @@ export interface Env {
 }
 
 export function getTiDBConnection(env: Env) {
-  const host = env.TIDB_HOST;
-  const user = env.TIDB_USER;
-  const password = env.TIDB_PASSWORD;
-  const database = env.TIDB_DATABASE || 'zipride';
+  const host = env.MYSQL_HOST || env.TIDB_HOST;
+  const user = env.MYSQL_USER || env.TIDB_USER;
+  const password = env.MYSQL_PASSWORD || env.TIDB_PASSWORD;
+  const database = env.MYSQL_DATABASE || env.TIDB_DATABASE || 'zipride';
 
   if (!host || !user || !password) {
-    throw new Error('TiDB credentials (TIDB_HOST, TIDB_USER, TIDB_PASSWORD) must be provided in environment bindings.');
+    throw new Error('Database credentials (MYSQL_HOST/TIDB_HOST, MYSQL_USER/TIDB_USER, MYSQL_PASSWORD/TIDB_PASSWORD) must be provided in environment bindings.');
   }
 
   const connectionString = env.DATABASE_URL || `mysql://${user}:${password}@${host}:4000/${database}`;
