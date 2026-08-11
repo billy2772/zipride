@@ -402,21 +402,21 @@ export const AuthController = {
       else if (userAgent.includes('Android')) platform = 'Android';
       else if (userAgent.includes('iPhone') || userAgent.includes('iPad')) platform = 'iOS';
 
-      // Log successful attempt
-      await db.query(
+      // Log successful attempt asynchronously
+      db.query(
         `INSERT INTO login_history (profile_id, login_time, ip_address, browser, platform, status) VALUES (?, NOW(), ?, ?, ?, 'Success')`,
         [user.id, req.ip || null, browser, platform]
-      );
+      ).catch((err) => console.warn('[login_history] Write failed:', err.message));
 
-      // Log audit
-      await AuditService.logAction({
+      // Log audit asynchronously
+      AuditService.logAction({
         profileId: user.id,
         action: 'Login',
         tableName: 'profiles',
         recordId: user.id,
         ipAddress: req.ip,
         notes: 'User logged in'
-      });
+      }).catch((err) => console.warn('[AuditService] Log action failed:', err.message));
 
       const token = generateAccessToken({
         id: user.id,

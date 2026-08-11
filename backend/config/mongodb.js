@@ -29,6 +29,10 @@ export async function connectMongoDB() {
   const tryConnect = async (uri) => {
     return mongoose.connect(uri, {
       serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 50,
+      minPoolSize: 5,
+      maxIdleTimeMS: 30000,
+      socketTimeoutMS: 45000,
     });
   };
 

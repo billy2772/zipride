@@ -144,15 +144,17 @@ export async function ensureMongoIndexes() {
     if (!mdb) return;
 
     await mdb.collection('audit_logs').createIndex({ created_at: -1 });
-    await mdb.collection('audit_logs').createIndex({ user_id: 1 });
+    await mdb.collection('audit_logs').createIndex({ user_id: 1, created_at: -1 });
     await mdb.collection('audit_logs').createIndex({ event_type: 1 });
 
-    await mdb.collection('ride_tracking_history').createIndex({ ride_id: 1 });
-    await mdb.collection('ride_tracking_history').createIndex({ recorded_at: 1 });
+    await mdb.collection('ride_tracking_history').createIndex({ ride_id: 1, recorded_at: 1 });
     await mdb.collection('ride_tracking_history').createIndex({ location: '2dsphere' });
 
     await mdb.collection('notifications').createIndex({ user_id: 1, read: 1 });
     await mdb.collection('notifications').createIndex({ created_at: -1 });
+
+    await mdb.collection('driver_documents').createIndex({ profile_id: 1 });
+    await mdb.collection('driver_documents').createIndex({ driver_id: 1 });
 
     console.log('[MongoDB] Indexes created successfully.');
   } catch (err) {

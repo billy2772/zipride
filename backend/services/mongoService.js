@@ -56,6 +56,45 @@ export const MongoService = {
     return null;
   },
 
+  async getDriverDocumentsBulk(profileIds) {
+    try {
+      if (!profileIds || !profileIds.length) return new Map();
+      const database = await MongoService.connect();
+      if (!database) return new Map();
+      const collection = database.collection('driver_documents');
+      const docs = await collection.find({
+        $or: [
+          { profile_id: { $in: profileIds } },
+          { profileId: { $in: profileIds } }
+        ]
+      }).toArray();
+
+      const map = new Map();
+      for (const doc of docs) {
+        const key = doc.profile_id || doc.profileId;
+        if (key) {
+          const rawProfilePhoto = doc.profilePhoto || doc.profile_photo_url || doc.profile_photo || null;
+          const rawLicensePhoto = doc.drivingLicense || doc.license_image_url || doc.license_photo || null;
+          const formattedProfilePhoto = formatAssetUrl(rawProfilePhoto);
+          const formattedLicensePhoto = formatAssetUrl(rawLicensePhoto);
+
+          map.set(key, {
+            ...doc,
+            profilePhoto: formattedProfilePhoto,
+            profile_photo: formattedProfilePhoto,
+            profile_photo_url: formattedProfilePhoto,
+            drivingLicense: formattedLicensePhoto,
+            license_image_url: formattedLicensePhoto,
+          });
+        }
+      }
+      return map;
+    } catch (err) {
+      console.warn('[Mongo Service] Bulk get driver documents failed:', err.message);
+      return new Map();
+    }
+  },
+
   async appendRidePath(rideId, driverId, lat, lng, speed = 0, heading = 0) {
     try {
       const database = await MongoService.connect();

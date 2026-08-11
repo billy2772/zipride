@@ -116,6 +116,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Lightweight health check endpoint for Render / Uptime monitors (prevents cold starts)
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);

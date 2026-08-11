@@ -385,6 +385,11 @@ export async function runDatabaseMigrations() {
         if (!rColNames.has('is_ac')) {
           await db.query(`ALTER TABLE rides ADD COLUMN is_ac TINYINT(1) DEFAULT 0`).catch(() => {});
         }
+      // Optimization: Add composite indexes for high-frequency queries
+      try {
+        await db.query(`ALTER TABLE login_history ADD INDEX idx_login_history_prof_status_time (profile_id, status, login_time)`).catch(() => {});
+        await db.query(`ALTER TABLE rides ADD INDEX idx_rides_rider_status (rider_id, ride_status)`).catch(() => {});
+        await db.query(`ALTER TABLE rides ADD INDEX idx_rides_driver_status (driver_id, ride_status)`).catch(() => {});
       } catch (e) {}
     } catch (e) {}
 

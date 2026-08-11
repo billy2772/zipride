@@ -10,7 +10,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "deploy:firebase": "npm run build && node scripts/prepare-firebase.js && npx firebase-tools deploy --project zipride-64b9d"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

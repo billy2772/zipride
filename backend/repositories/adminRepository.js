@@ -5,66 +5,81 @@
 import db from '../config/db.js';
 
 export const AdminRepository = {
-  // Dashboard stats — extended 13 stats
+  // Dashboard stats — parallelized execution via Promise.all
   async getDashboardStats() {
-    const [[userCount]] = await db.execute(`SELECT COUNT(*) AS total FROM profiles WHERE role = 'rider'`);
-    const [[driverApproved]] = await db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE verification_status = 'Approved'`);
-    const [[driverOnline]] = await db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE is_online = 1`);
-    const [[driverOffline]] = await db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE verification_status = 'Approved' AND is_online = 0`);
-    const [[pendingDrivers]] = await db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE verification_status = 'Pending'`);
-    const [[rideCount]] = await db.execute(`SELECT COUNT(*) AS total FROM rides`);
-    const [[todayRides]] = await db.execute(`SELECT COUNT(*) AS total FROM rides WHERE DATE(booking_time) = CURDATE()`);
-    const [[completedToday]] = await db.execute(`SELECT COUNT(*) AS total FROM rides WHERE DATE(completed_time) = CURDATE() AND ride_status = 'Ride Completed'`);
-    const [[cancelledToday]] = await db.execute(`SELECT COUNT(*) AS total FROM rides WHERE DATE(cancelled_time) = CURDATE() AND ride_status = 'Cancelled'`);
-    const [[activeRides]] = await db.execute(`SELECT COUNT(*) AS total FROM rides WHERE ride_status IN ('Searching','Driver Assigned','Driver Accepted','Driver Arrived','OTP Verified','Ride Started')`);
-    const [[pendingPayments]] = await db.execute(`SELECT COUNT(*) AS total FROM rides WHERE payment_status = 'Pending' AND ride_status = 'Ride Completed'`);
-    const [[revenue]] = await db.execute(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE payment_status = 'Success'`);
-    const [[todayRevenue]] = await db.execute(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE payment_status = 'Success' AND DATE(payment_time) = CURDATE()`);
-    const [[walletBalance]] = await db.execute(`SELECT COALESCE(SUM(wallet_balance), 0) AS total FROM wallets`);
-    const [[avgRating]] = await db.execute(`SELECT COALESCE(AVG(rating), 0) AS avg FROM driver_profiles WHERE verification_status = 'Approved'`);
-
-    // Top 5 drivers by completed rides
-    const [topDrivers] = await db.execute(
-      `SELECT p.full_name, dp.total_earnings, dp.completed_rides, dp.rating
-       FROM driver_profiles dp
-       JOIN profiles p ON dp.profile_id = p.id
-       WHERE dp.verification_status = 'Approved'
-       ORDER BY dp.completed_rides DESC LIMIT 5`
-    );
-
-    // Top 5 riders by ride count
-    const [topRiders] = await db.execute(
-      `SELECT p.full_name, COUNT(r.id) AS ride_count
-       FROM rides r
-       JOIN profiles p ON r.rider_id = p.id
-       GROUP BY r.rider_id, p.full_name
-       ORDER BY ride_count DESC LIMIT 5`
-    );
-
-    // Active riders (made a ride in last 30 days)
-    const [[activeRiders]] = await db.execute(
-      `SELECT COUNT(DISTINCT rider_id) AS total FROM rides WHERE booking_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
-    );
+    const [
+      [[userCount]],
+      [[driverApproved]],
+      [[driverOnline]],
+      [[driverOffline]],
+      [[pendingDrivers]],
+      [[rideCount]],
+      [[todayRides]],
+      [[completedToday]],
+      [[cancelledToday]],
+      [[activeRides]],
+      [[pendingPayments]],
+      [[revenue]],
+      [[todayRevenue]],
+      [[walletBalance]],
+      [[avgRating]],
+      [topDrivers],
+      [topRiders],
+      [[activeRiders]],
+    ] = await Promise.all([
+      db.execute(`SELECT COUNT(*) AS total FROM profiles WHERE role = 'rider'`),
+      db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE verification_status = 'Approved'`),
+      db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE is_online = 1`),
+      db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE verification_status = 'Approved' AND is_online = 0`),
+      db.execute(`SELECT COUNT(*) AS total FROM driver_profiles WHERE verification_status = 'Pending'`),
+      db.execute(`SELECT COUNT(*) AS total FROM rides`),
+      db.execute(`SELECT COUNT(*) AS total FROM rides WHERE booking_time >= CURDATE()`),
+      db.execute(`SELECT COUNT(*) AS total FROM rides WHERE completed_time >= CURDATE() AND ride_status = 'Ride Completed'`),
+      db.execute(`SELECT COUNT(*) AS total FROM rides WHERE cancelled_time >= CURDATE() AND ride_status = 'Cancelled'`),
+      db.execute(`SELECT COUNT(*) AS total FROM rides WHERE ride_status IN ('Searching','Driver Assigned','Driver Accepted','Driver Arrived','OTP Verified','Ride Started')`),
+      db.execute(`SELECT COUNT(*) AS total FROM rides WHERE payment_status = 'Pending' AND ride_status = 'Ride Completed'`),
+      db.execute(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE payment_status = 'Success'`),
+      db.execute(`SELECT COALESCE(SUM(amount), 0) AS total FROM payments WHERE payment_status = 'Success' AND created_time >= CURDATE()`),
+      db.execute(`SELECT COALESCE(SUM(wallet_balance), 0) AS total FROM wallets`),
+      db.execute(`SELECT COALESCE(AVG(rating), 0) AS avg FROM driver_profiles WHERE verification_status = 'Approved'`),
+      db.execute(
+        `SELECT p.full_name, dp.total_earnings, dp.completed_rides, dp.rating
+         FROM driver_profiles dp
+         JOIN profiles p ON dp.profile_id = p.id
+         WHERE dp.verification_status = 'Approved'
+         ORDER BY dp.completed_rides DESC LIMIT 5`
+      ),
+      db.execute(
+        `SELECT p.full_name, COUNT(r.id) AS ride_count
+         FROM rides r
+         JOIN profiles p ON r.rider_id = p.id
+         GROUP BY r.rider_id, p.full_name
+         ORDER BY ride_count DESC LIMIT 5`
+      ),
+      db.execute(
+        `SELECT COUNT(DISTINCT rider_id) AS total FROM rides WHERE booking_time >= DATE_SUB(NOW(), INTERVAL 30 DAY)`
+      ),
+    ]);
 
     return {
-      totalRiders: userCount.total,
-      totalDrivers: driverApproved.total,
-      driversOnline: driverOnline.total,
-      driversOffline: driverOffline.total,
-      pendingDriverApprovals: pendingDrivers.total,
-      totalRides: rideCount.total,
-      todayRides: todayRides.total,
-      completedToday: completedToday.total,
-      cancelledToday: cancelledToday.total,
-      activeRides: activeRides.total,
-      pendingPayments: pendingPayments.total,
-      totalRevenue: revenue.total,
-      todayRevenue: todayRevenue.total,
-      platformWalletBalance: walletBalance.total,
-      averageDriverRating: parseFloat(avgRating.avg || 0).toFixed(2),
-      activeRiders: activeRiders.total,
-      topDrivers,
-      topRiders,
+      totalRiders: userCount?.total || 0,
+      totalDrivers: driverApproved?.total || 0,
+      driversOnline: driverOnline?.total || 0,
+      driversOffline: driverOffline?.total || 0,
+      pendingDriverApprovals: pendingDrivers?.total || 0,
+      totalRides: rideCount?.total || 0,
+      todayRides: todayRides?.total || 0,
+      completedToday: completedToday?.total || 0,
+      cancelledToday: cancelledToday?.total || 0,
+      activeRides: activeRides?.total || 0,
+      pendingPayments: pendingPayments?.total || 0,
+      totalRevenue: revenue?.total || 0,
+      todayRevenue: todayRevenue?.total || 0,
+      platformWalletBalance: walletBalance?.total || 0,
+      averageDriverRating: parseFloat(avgRating?.avg || 0).toFixed(2),
+      activeRiders: activeRiders?.total || 0,
+      topDrivers: topDrivers || [],
+      topRiders: topRiders || [],
     };
   },
 

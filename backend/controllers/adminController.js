@@ -141,11 +141,14 @@ export const AdminController = {
       const [rows] = await db.query(sql, params);
 
       const { MongoService } = await import('../services/mongoService.js');
-      const enriched = await Promise.all(rows.map(async (row) => {
-        let mongoDocs = null;
-        try {
-          mongoDocs = await MongoService.getDriverDocuments(row.profile_id);
-        } catch (e) {}
+      const profileIds = rows.map(r => r.profile_id).filter(Boolean);
+      let mongoDocsMap = new Map();
+      try {
+        mongoDocsMap = await MongoService.getDriverDocumentsBulk(profileIds);
+      } catch (e) {}
+
+      const enriched = rows.map((row) => {
+        const mongoDocs = mongoDocsMap.get(row.profile_id) || null;
         const isUploaded = (url) => url && typeof url === 'string' && !url.includes('ui-avatars.com');
         const rawProfilePhoto = [row.direct_profile_photo, row.mysql_profile_photo, mongoDocs?.profile_photo_url, mongoDocs?.profile_photo, mongoDocs?.profilePhoto, row.profile_avatar].find(isUploaded) || row.direct_profile_photo || row.profile_avatar || null;
         const rawLicensePhoto = [row.direct_license_photo, row.mysql_license_photo, mongoDocs?.license_image_url, mongoDocs?.license_photo, mongoDocs?.drivingLicense].find(isUploaded) || row.direct_license_photo || null;
@@ -158,9 +161,8 @@ export const AdminController = {
           profile_photo: profilePhoto,
           profile_photo_url: profilePhoto,
           license_image_url: licensePhoto,
-          // live location fields already present from SQL JOIN (live_lat, live_lng, location_updated_at)
         };
-      }));
+      });
 
       return sendSuccess(res, 'Drivers list retrieved.', enriched);
     } catch (err) {

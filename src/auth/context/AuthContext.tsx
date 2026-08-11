@@ -252,6 +252,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setRiderSession(sessionData);
         }
 
+        // Synchronously set initial profile state for instant 0ms UI rendering
+        const initialProfile = {
+          id: sessionData.id,
+          full_name: sessionData.full_name || sessionData.fullName || "User",
+          role: sessionData.role || "rider",
+          username: sessionData.username || "",
+          email: sessionData.email || "",
+          phone: sessionData.phone || "",
+          profile_image: sessionData.profile_image || sessionData.profilePhoto || "",
+          account_status: sessionData.account_status || "active",
+          created_at: sessionData.created_at || new Date().toISOString(),
+          updated_at: sessionData.updated_at || new Date().toISOString(),
+        } as Profile;
+
+        setProfile(initialProfile);
+        setLoading(false);
+        registerSocketAuth(initialProfile.id, initialProfile.role);
+
+        // Background revalidation without blocking UI
         supabase
           .from("profiles")
           .select("*")
@@ -268,10 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   .maybeSingle()
                   .then(({ data: dProf }) => {
                     if (dProf) setDriverProfile(dProf);
-                    setLoading(false);
                   });
-              } else {
-                setLoading(false);
               }
             } else {
               signOut();
