@@ -1,0 +1,24 @@
+{
+  "name": "zipride-cloudflare-backend",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers Edge Backend for ZipRide using Hono and TiDB HTTP Serverless",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@tidbcloud/serverless": "^0.2.0",
+    "bcryptjs": "^2.4.3",
+    "hono": "^4.2.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240405.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "typescript": "^5.4.0",
+    "wrangler": "^3.50.0"
+  }
+}

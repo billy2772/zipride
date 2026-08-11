@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zipride-backend-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-11",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "vars": {
+    "NODE_ENV": "production",
+    "TIDB_HOST": "gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
+    "TIDB_PORT": "4000",
+    "TIDB_USER": "cBAXK2TmpioAcwS.root",
+    "TIDB_DATABASE": "zipride"
+  }
+}
