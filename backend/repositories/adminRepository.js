@@ -2,11 +2,23 @@
 // Admin operations — uses actual schema:
 // profiles, driver_profiles, rides, wallets, wallet_transactions, admins, complaints, support_tickets
 
-import db from '../config/db.js';
+let cachedStats = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 15000; // 15 seconds cache
 
 export const AdminRepository = {
-  // Dashboard stats — parallelized execution via Promise.all
+  // Clear dashboard stats cache when data changes
+  clearStatsCache() {
+    cachedStats = null;
+    lastCacheTime = 0;
+  },
+
+  // Dashboard stats — parallelized execution with 15s TTL memory cache
   async getDashboardStats() {
+    const now = Date.now();
+    if (cachedStats && (now - lastCacheTime < CACHE_TTL_MS)) {
+      return cachedStats;
+    }
     const [
       [[userCount]],
       [[driverApproved]],
@@ -61,7 +73,7 @@ export const AdminRepository = {
       ),
     ]);
 
-    return {
+    cachedStats = {
       totalRiders: userCount?.total || 0,
       totalDrivers: driverApproved?.total || 0,
       driversOnline: driverOnline?.total || 0,
@@ -81,6 +93,8 @@ export const AdminRepository = {
       topDrivers: topDrivers || [],
       topRiders: topRiders || [],
     };
+    lastCacheTime = now;
+    return cachedStats;
   },
 
   // List all users (riders and drivers)
