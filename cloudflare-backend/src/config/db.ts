@@ -6,13 +6,16 @@ export interface Env {
   MYSQL_USER?: string;
   MYSQL_PASSWORD?: string;
   MYSQL_DATABASE?: string;
+  MYSQL_PORT?: string | number;
   TIDB_HOST?: string;
   TIDB_USER?: string;
   TIDB_PASSWORD?: string;
   TIDB_DATABASE?: string;
+  MONGODB_URI?: string;
   JWT_SECRET?: string;
   RAZORPAY_KEY_ID?: string;
   RAZORPAY_KEY_SECRET?: string;
+  RAZORPAY_WEBHOOK_SECRET?: string;
   CLOUDINARY_CLOUD_NAME?: string;
   CLOUDINARY_UPLOAD_PRESET?: string;
   CLOUDINARY_API_KEY?: string;
