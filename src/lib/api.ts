@@ -14,7 +14,7 @@
 export const API_BASE: string =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
   (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, '') ||
-  'https://zipride-1.onrender.com';
+  'https://zipride-backend-worker.zipride-api.workers.dev';
 
 /**
  * Drop-in replacement for `fetch()` that prepends the backend base URL
