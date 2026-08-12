@@ -11,6 +11,7 @@ import {
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { StatCard, Pill } from "@/shared/components/kit/Primitives";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/shared/context/LanguageContext";
 
 import { apiFetch } from "@/lib/api";
 
@@ -131,23 +132,25 @@ export function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  const { t } = useLanguage();
+
   const statRows = [
-    { value: `₹${Number(stats.todayRevenue).toLocaleString()}`, label: "Today's Revenue", icon: <TrendingUp /> },
-    { value: stats.todayRides.toString(), label: "Today's Rides", icon: <RouteIcon /> },
-    { value: stats.driversOnline.toString(), label: "Drivers Online", icon: <Wifi /> },
-    { value: stats.driversOffline.toString(), label: "Drivers Offline", icon: <WifiOff /> },
-    { value: stats.activeRiders.toString(), label: "Active Riders (30d)", icon: <Users /> },
-    { value: stats.completedToday.toString(), label: "Completed Today", icon: <CheckCircle /> },
-    { value: stats.cancelledToday.toString(), label: "Cancelled Today", icon: <XCircle /> },
-    { value: `₹${Number(stats.platformWalletBalance).toLocaleString()}`, label: "Wallet Balance", icon: <Wallet /> },
-    { value: stats.pendingDriverApprovals.toString(), label: "Pending Verifications", icon: <AlertCircle /> },
-    { value: stats.pendingPayments.toString(), label: "Pending Payments", icon: <CreditCard /> },
-    { value: Number(stats.averageDriverRating).toFixed(1), label: "Avg Driver Rating", icon: <Star /> },
-    { value: `₹${Number(stats.totalRevenue).toLocaleString()}`, label: "Total Revenue", icon: <TrendingUp /> },
+    { value: `₹${Number(stats.todayRevenue).toLocaleString()}`, label: t("stat_todays_revenue") || "Today's Revenue", icon: <TrendingUp /> },
+    { value: stats.todayRides.toString(), label: t("stat_todays_rides") || "Today's Rides", icon: <RouteIcon /> },
+    { value: stats.driversOnline.toString(), label: t("stat_drivers_online") || "Drivers Online", icon: <Wifi /> },
+    { value: stats.driversOffline.toString(), label: t("stat_drivers_offline") || "Drivers Offline", icon: <WifiOff /> },
+    { value: stats.activeRiders.toString(), label: t("stat_active_riders") || "Active Riders (30d)", icon: <Users /> },
+    { value: stats.completedToday.toString(), label: t("stat_completed_today") || "Completed Today", icon: <CheckCircle /> },
+    { value: stats.cancelledToday.toString(), label: t("stat_cancelled_today") || "Cancelled Today", icon: <XCircle /> },
+    { value: `₹${Number(stats.platformWalletBalance).toLocaleString()}`, label: t("stat_wallet_balance") || "Wallet Balance", icon: <Wallet /> },
+    { value: stats.pendingDriverApprovals.toString(), label: t("stat_pending_verifications") || "Pending Verifications", icon: <AlertCircle /> },
+    { value: stats.pendingPayments.toString(), label: t("stat_pending_payments") || "Pending Payments", icon: <CreditCard /> },
+    { value: Number(stats.averageDriverRating).toFixed(1), label: t("stat_avg_rating") || "Avg Driver Rating", icon: <Star /> },
+    { value: `₹${Number(stats.totalRevenue).toLocaleString()}`, label: t("stat_total_revenue") || "Total Revenue", icon: <TrendingUp /> },
   ];
 
   return (
-    <AdminShell title="Dashboard" subtitle="Live platform overview">
+    <AdminShell title={t("nav_admin_dashboard") || "Dashboard"} subtitle={t("dashboard_subtitle") || "Live platform overview"}>
       {/* 12-stat grid */}
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
         {statRows.map((s) => (
@@ -158,7 +161,7 @@ export function AdminDashboard() {
       {/* Charts */}
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <h2 className="mb-4 font-extrabold">Revenue trend (₹ thousands)</h2>
+          <h2 className="mb-4 font-extrabold">{t("revenue_trend") || "Revenue trend (₹ thousands)"}</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueTrend}>
@@ -177,7 +180,7 @@ export function AdminDashboard() {
           </div>
         </div>
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <h2 className="mb-4 font-extrabold">Rides by vehicle</h2>
+          <h2 className="mb-4 font-extrabold">{t("rides_by_vehicle") || "Rides by vehicle"}</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -194,9 +197,9 @@ export function AdminDashboard() {
       {/* Top Drivers & Riders */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <h2 className="mb-4 font-extrabold">Top Drivers</h2>
+          <h2 className="mb-4 font-extrabold">{t("top_drivers") || "Top Drivers"}</h2>
           {stats.topDrivers.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No data yet.</p>
+            <p className="text-muted-foreground text-sm">{t("no_data") || "No data yet."}</p>
           ) : (
             <div className="space-y-3">
               {stats.topDrivers.map((d, i) => (
@@ -215,9 +218,9 @@ export function AdminDashboard() {
           )}
         </div>
         <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <h2 className="mb-4 font-extrabold">Top Riders</h2>
+          <h2 className="mb-4 font-extrabold">{t("top_riders") || "Top Riders"}</h2>
           {stats.topRiders.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No data yet.</p>
+            <p className="text-muted-foreground text-sm">{t("no_data") || "No data yet."}</p>
           ) : (
             <div className="space-y-3">
               {stats.topRiders.map((r, i) => (

@@ -5,8 +5,8 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --config wrangler.json",
+    "deploy": "wrangler deploy --config wrangler.json",
     "types": "wrangler types"
   },
   "dependencies": {

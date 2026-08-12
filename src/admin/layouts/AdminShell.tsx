@@ -20,18 +20,20 @@ import { Avatar } from "@/shared/components/kit/Primitives";
 import { cn } from "@/shared/utils/cn";
 import { NotificationCenter } from "@/shared/components/NotificationCenter";
 import { useAuth } from "@/auth/hooks/useAuth";
+import { useLanguage } from "@/shared/context/LanguageContext";
+import { LanguageSwitcher } from "@/shared/components/LanguageSwitcher";
 
 const NAV = [
-  { label: "Dashboard", to: "/admin", icon: LayoutDashboard },
-  { label: "Users", to: "/admin/users", icon: Users },
-  { label: "Drivers", to: "/admin/drivers", icon: Car },
-  { label: "Verifications", to: "/admin/verifications", icon: ShieldCheck },
-  { label: "Rides", to: "/admin/rides", icon: RouteIcon },
-  { label: "Revenue", to: "/admin/revenue", icon: TrendingUp },
-  { label: "Wallet Panel", to: "/admin/wallet", icon: Wallet },
-  { label: "Settlements", to: "/admin/settlements", icon: ArrowUpToLine },
-  { label: "Reports", to: "/admin/reports", icon: FileBarChart },
-  { label: "Settings", to: "/admin/settings", icon: SettingsIcon },
+  { key: "nav_admin_dashboard", defaultLabel: "Dashboard", to: "/admin", icon: LayoutDashboard },
+  { key: "nav_admin_users", defaultLabel: "Users", to: "/admin/users", icon: Users },
+  { key: "nav_admin_drivers", defaultLabel: "Drivers", to: "/admin/drivers", icon: Car },
+  { key: "nav_admin_verifications", defaultLabel: "Verifications", to: "/admin/verifications", icon: ShieldCheck },
+  { key: "nav_admin_rides", defaultLabel: "Rides", to: "/admin/rides", icon: RouteIcon },
+  { key: "nav_admin_revenue", defaultLabel: "Revenue", to: "/admin/revenue", icon: TrendingUp },
+  { key: "nav_admin_wallet", defaultLabel: "Wallet Panel", to: "/admin/wallet", icon: Wallet },
+  { key: "nav_admin_settlements", defaultLabel: "Settlements", to: "/admin/settlements", icon: ArrowUpToLine },
+  { key: "nav_admin_reports", defaultLabel: "Reports", to: "/admin/reports", icon: FileBarChart },
+  { key: "nav_admin_settings", defaultLabel: "Settings", to: "/admin/settings", icon: SettingsIcon },
 ];
 
 export function AdminShell({
@@ -45,6 +47,7 @@ export function AdminShell({
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { profile, signOut } = useAuth();
+  const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const name = profile?.full_name || "Admin";
@@ -73,7 +76,7 @@ export function AdminShell({
                 )}
               >
                 <n.icon className="h-5 w-5" />
-                {n.label}
+                {t(n.key) || n.defaultLabel}
               </Link>
             );
           })}
@@ -83,7 +86,7 @@ export function AdminShell({
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/10 text-left cursor-pointer"
         >
           <LogOut className="h-5 w-5" />
-          Logout
+          {t("nav_logout") || "Logout"}
         </button>
       </aside>
 
@@ -99,6 +102,7 @@ export function AdminShell({
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageSwitcher />
             <NotificationCenter />
             <Avatar label={label} src={avatar} className="h-10 w-10 text-sm" />
             <button
@@ -139,58 +143,36 @@ export function AdminShell({
                       className={cn(
                         "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
                         active
-                          ? "bg-primary/10 text-primary font-bold"
-                          : "text-foreground hover:bg-secondary",
+                          ? "gradient-brand text-primary-foreground shadow-glow"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                       )}
                     >
                       <n.icon className="h-5 w-5" />
-                      {n.label}
+                      {t(n.key) || n.defaultLabel}
                     </Link>
                   );
                 })}
               </nav>
 
-              <div className="mt-8 border-t border-border pt-4">
+              <div className="mt-6 border-t border-border pt-4">
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
                     signOut();
                   }}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-destructive hover:bg-destructive/10"
+                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-destructive hover:bg-destructive/10"
                 >
                   <LogOut className="h-5 w-5" />
-                  Logout
+                  {t("nav_logout") || "Logout"}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Mobile Horizontal Subnav */}
-        <div className="flex gap-1 overflow-x-auto border-b border-border bg-card px-3 py-2 lg:hidden no-scrollbar">
-          {NAV.map((n) => {
-            const active = n.to === "/admin" ? pathname === "/admin" : pathname.startsWith(n.to);
-            return (
-              <Link
-                key={n.to}
-                to={n.to}
-                className={cn(
-                  "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold shrink-0",
-                  active
-                    ? "gradient-brand text-primary-foreground shadow-glow"
-                    : "bg-secondary text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <n.icon className="h-3.5 w-3.5" />
-                {n.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );
 }
-
+export default AdminShell;
