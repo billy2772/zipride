@@ -19,26 +19,27 @@ import { useAuth } from "@/auth/hooks/useAuth";
 import { cn } from "@/shared/utils/cn";
 import { ActiveRideBanner } from "@/rider/components/ActiveRideBanner";
 import { NotificationCenter } from "@/shared/components/NotificationCenter";
+import { useLanguage } from "@/shared/context/LanguageContext";
+import { LanguageSwitcher } from "@/shared/components/LanguageSwitcher";
 
 const TOP_NAV = [
-  { label: "Home", to: "/dashboard" },
-  { label: "Your Rides", to: "/history" },
-  { label: "Wallet", to: "/wallet" },
-  { label: "Payments", to: "/payment-history" },
-  { label: "Help", to: "/help" },
+  { key: "nav_home", defaultLabel: "Home", to: "/dashboard" },
+  { key: "nav_rides", defaultLabel: "Your Rides", to: "/history" },
+  { key: "nav_wallet", defaultLabel: "Wallet", to: "/wallet" },
+  { key: "nav_profile", defaultLabel: "Profile", to: "/profile" },
 ];
 
 const BOTTOM_NAV = [
-  { label: "Home", to: "/dashboard", icon: Home },
-  { label: "Your Rides", to: "/history", icon: Car },
-  { label: "Wallet", to: "/wallet", icon: Wallet },
-  { label: "Profile", to: "/profile", icon: User },
-  { label: "Help", to: "/help", icon: HelpCircle },
+  { key: "nav_home", defaultLabel: "Home", to: "/dashboard", icon: Home },
+  { key: "nav_rides", defaultLabel: "Your Rides", to: "/history", icon: Car },
+  { key: "nav_wallet", defaultLabel: "Wallet", to: "/wallet", icon: Wallet },
+  { key: "nav_profile", defaultLabel: "Profile", to: "/profile", icon: User },
 ];
 
 export function UserTopNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { profile, signOut } = useAuth();
+  const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const name = profile?.full_name || "User";
@@ -64,13 +65,14 @@ export function UserTopNav() {
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {n.label}
+                  {t(n.key) || n.defaultLabel}
                 </Link>
               );
             })}
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageSwitcher />
             <NotificationCenter />
             
             <Link to="/profile" className="hidden sm:block">
