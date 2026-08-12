@@ -55,6 +55,9 @@ admin.get('/dashboard/stats', async (c) => {
       todayRevenue: (todayRevenue[0] as any)?.total || 0,
       platformWalletBalance: (walletBalance[0] as any)?.total || 0,
       averageDriverRating: parseFloat((avgRating[0] as any)?.avg || 0).toFixed(2),
+      completedRides: [],
+      topDrivers: [],
+      topRiders: [],
     };
 
     return c.json({ success: true, message: 'Edge dashboard stats retrieved.', data: stats });
