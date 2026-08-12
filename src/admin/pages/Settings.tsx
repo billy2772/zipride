@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { AdminShell } from "@/admin/layouts/AdminShell";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
+import { useLanguage, type Language } from "@/shared/context/LanguageContext";
+import { LanguageSwitcher } from "@/shared/components/LanguageSwitcher";
 
 export function AdminSettings() {
   const [baseFare, setBaseFare] = useState("40");
@@ -246,6 +248,18 @@ export function AdminSettings() {
                 className="hidden"
               />
             </label>
+          </div>
+        </div>
+
+        {/* System Language Preferences Card */}
+        <div className="rounded-3xl border border-border bg-card p-6 shadow-soft lg:col-span-2">
+          <h2 className="mb-2 font-extrabold text-lg">🌐 Application Language & Regional Settings</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Select your preferred system interface language. All navigation links, stat cards, and labels will update dynamically.
+          </p>
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <span className="text-xs text-muted-foreground">Supported: English 🇬🇧, தமிழ் 🇮🇳, हिंदी 🇮🇳</span>
           </div>
         </div>
       </div>

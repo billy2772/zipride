@@ -150,9 +150,6 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AuthProvider>
-          <div className="fixed top-4 right-4 z-50 pointer-events-auto">
-            <LanguageSwitcher />
-          </div>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </AuthProvider>
