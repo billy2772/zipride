@@ -91,10 +91,11 @@ export function AdminDashboard() {
         for (let i = Math.max(0, currentMonthIdx - 5); i <= currentMonthIdx; i++) {
           trendMap[months[i]] = 0;
         }
-        completedRides?.forEach((r: any) => {
-          const d = new Date(r.created_at);
-          const m = months[d.getMonth()];
-          if (trendMap[m] !== undefined) trendMap[m] += Number(r.fare || 0) / 1000;
+        const completedRidesList = Array.isArray(d.completedRides) ? d.completedRides : [];
+        completedRidesList.forEach((r: any) => {
+          const dt = new Date(r.created_at || r.booking_time);
+          const m = months[dt.getMonth()];
+          if (trendMap[m] !== undefined) trendMap[m] += Number(r.fare || r.final_fare || 0) / 1000;
         });
         setRevenueTrend(Object.keys(trendMap).map(m => ({ month: m, revenue: parseFloat(trendMap[m].toFixed(2)) })));
 
