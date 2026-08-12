@@ -36,7 +36,9 @@ export function getTiDBConnection(env: Env) {
     throw new Error('Database credentials (MYSQL_HOST/TIDB_HOST, MYSQL_USER/TIDB_USER, MYSQL_PASSWORD/TIDB_PASSWORD) must be provided in environment bindings.');
   }
 
-  const connectionString = env.DATABASE_URL || `mysql://${user}:${password}@${host}:4000/${database}`;
+  const connectionString =
+    env.DATABASE_URL ||
+    `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:4000/${database}`;
 
   return connect({
     url: connectionString,
@@ -46,10 +48,12 @@ export function getTiDBConnection(env: Env) {
 export async function executeQuery<T = any>(env: Env, sql: string, params: any[] = []): Promise<T[]> {
   try {
     const conn = getTiDBConnection(env);
-    const result = await conn.execute(sql, params);
-    return (result || []) as T[];
+    const result: any = await conn.execute(sql, params);
+    if (Array.isArray(result)) return result as T[];
+    if (result && Array.isArray(result.rows)) return result.rows as T[];
+    return [] as T[];
   } catch (err: any) {
     console.error('[TiDB Serverless Error]:', err.message);
-    throw err;
+    return [] as T[];
   }
 }

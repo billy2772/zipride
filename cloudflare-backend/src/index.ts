@@ -32,12 +32,17 @@ app.get('/socket.io/', (c) => {
   return handleWebSocketRequest(c.req.raw);
 });
 
-// Register Edge Sub-routers
+// Register Edge Sub-routers (supports both /api/* and /api/v1/*)
 app.route('/api/auth', authRoutes);
+app.route('/api/v1/auth', authRoutes);
 app.route('/api/admin', adminRoutes);
+app.route('/api/v1/admin', adminRoutes);
 app.route('/api/rides', rideRoutes);
+app.route('/api/v1/rides', rideRoutes);
 app.route('/api/payments', paymentRoutes);
+app.route('/api/v1/payments', paymentRoutes);
 app.route('/api/documents', documentRoutes);
+app.route('/api/v1/documents', documentRoutes);
 
 // Root fallback handler
 app.get('/', (c) => {
