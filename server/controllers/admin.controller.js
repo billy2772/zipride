@@ -7,18 +7,18 @@ export const AdminController = {
   async getUsers(req, res, next) {
     try {
       const users = await UserModel.getAll('rider');
-      res.json({ data: users });
+      res.json({ success: true, data: users });
     } catch (err) {
-      res.status(400).json({ error: { message: err.message } });
+      res.status(400).json({ success: false, error: { message: err.message } });
     }
   },
 
   async getDrivers(req, res, next) {
     try {
       const drivers = await DriverModel.getAll();
-      res.json({ data: drivers });
+      res.json({ success: true, data: drivers });
     } catch (err) {
-      res.status(400).json({ error: { message: err.message } });
+      res.status(400).json({ success: false, error: { message: err.message } });
     }
   },
 
@@ -26,9 +26,9 @@ export const AdminController = {
     try {
       const { id } = req.params;
       const updated = await DriverModel.update(id, { verification_status: 'approved' });
-      res.json({ data: updated });
+      res.json({ success: true, data: updated });
     } catch (err) {
-      res.status(400).json({ error: { message: err.message } });
+      res.status(400).json({ success: false, error: { message: err.message } });
     }
   },
 
@@ -36,18 +36,18 @@ export const AdminController = {
     try {
       const { id } = req.params;
       const updated = await DriverModel.update(id, { verification_status: 'rejected' });
-      res.json({ data: updated });
+      res.json({ success: true, data: updated });
     } catch (err) {
-      res.status(400).json({ error: { message: err.message } });
+      res.status(400).json({ success: false, error: { message: err.message } });
     }
   },
 
   async getSettings(req, res, next) {
     try {
       const settings = await AdminModel.getSettings();
-      res.json({ data: settings });
+      res.json({ success: true, data: settings });
     } catch (err) {
-      res.status(400).json({ error: { message: err.message } });
+      res.status(400).json({ success: false, error: { message: err.message } });
     }
   },
 
@@ -55,9 +55,9 @@ export const AdminController = {
     try {
       const { key, value } = req.body;
       const setting = await AdminModel.updateSetting(key, value);
-      res.json({ data: setting });
+      res.json({ success: true, data: setting });
     } catch (err) {
-      res.status(400).json({ error: { message: err.message } });
+      res.status(400).json({ success: false, error: { message: err.message } });
     }
   },
 
@@ -72,6 +72,7 @@ export const AdminController = {
       const totalRevenue = completedRides.reduce((sum, r) => sum + r.fare, 0);
 
       res.json({
+        success: true,
         data: {
           totalUsers: riders.length,
           activeDrivers: approvedDrivers.length,
@@ -80,7 +81,7 @@ export const AdminController = {
         }
       });
     } catch (err) {
-      res.status(400).json({ error: { message: err.message } });
+      res.status(400).json({ success: false, error: { message: err.message } });
     }
   }
 };
